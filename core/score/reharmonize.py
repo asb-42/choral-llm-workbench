@@ -1,65 +1,64 @@
-from music21 import chord, pitch, note
+from music21 import chord, note, pitch, stream
+from copy import deepcopy
 
-def make_chord(root: str, quality: str) -> chord.Chord:
+def make_chord(root: str, quality: str, base_octave: int = 4) -> chord.Chord:
     """
-    Create a chord based on root note and quality.
+    Create a chord given its root note and quality.
 
     Args:
-        root (str): Root note of the chord (e.g., 'C', 'D#', 'F').
-        quality (str): Chord quality ('major', 'minor', etc.).
+        root (str): Root note of the chord (e.g., 'C', 'D#').
+        quality (str): Chord quality ('major', 'minor', 'dim', etc.).
+        base_octave (int, optional): Octave number for the chord root. Defaults to 4.
 
     Returns:
-        music21.chord.Chord: Constructed chord object.
-
-    Raises:
-        ValueError: If root note is invalid.
+        music21.chord.Chord: The generated chord.
     """
-    base_octave = 4  # Default octave
     try:
         root_pitch = pitch.Pitch(f"{root}{base_octave}")
-    except pitch.AccidentalException:
+    except Exception:
         raise ValueError(f"Invalid root pitch: {root}")
 
-    if quality.lower() == "major":
-        new_chord = chord.Chord([root_pitch, root_pitch.transpose(4), root_pitch.transpose(7)])
-    elif quality.lower() == "minor":
-        new_chord = chord.Chord([root_pitch, root_pitch.transpose(3), root_pitch.transpose(7)])
+    if quality.lower() == 'major':
+        intervals = [0, 4, 7]
+    elif quality.lower() == 'minor':
+        intervals = [0, 3, 7]
+    elif quality.lower() == 'dim':
+        intervals = [0, 3, 6]
     else:
-        # Default to major if unknown quality
-        new_chord = chord.Chord([root_pitch, root_pitch.transpose(4), root_pitch.transpose(7)])
+        raise ValueError(f"Unsupported chord quality: {quality}")
 
-    return new_chord
+    chord_notes = [note.Note(root_pitch.midi + i) for i in intervals]
+    return chord.Chord(chord_notes)
 
-def replace_chord_in_measure(score, measure_number: int, new_root: str, quality: str = "major"):
+def replace_chord_in_measure(score: stream.Score, measure_number: int, new_root: str, new_quality: str = 'major'):
     """
-    Replace the chord in a specific measure of the score.
+    Replace the chord in a specific measure with a new chord.
 
     Args:
-        score (music21.stream.Score): The score to modify.
-        measure_number (int): Measure index (1-based).
-        new_root (str): New root note for the chord.
-        quality (str, optional): Chord quality. Defaults to "major".
+        score (music21.stream.Score): The score containing the measure.
+        measure_number (int): Number of the measure to replace.
+        new_root (str): Root note of the new chord.
+        new_quality (str, optional): Quality of the new chord. Defaults to 'major'.
     """
     measure = score.measure(measure_number)
     if measure is None:
-        return
+        raise ValueError(f"Measure {measure_number} not found in score.")
 
+    new_ch = make_chord(new_root, new_quality)
     # Remove existing chords
     for c in measure.getElementsByClass(chord.Chord):
         measure.remove(c)
 
-    # Add new chord
-    new_ch = make_chord(new_root, quality)
+    # Insert the new chord at the beginning of the measure
     measure.insert(0, new_ch)
 
-def replace_chords_in_measures(score, replacements: dict):
+def replace_chords_in_measures(score: stream.Score, replacements: dict):
     """
-    Replace multiple chords in a score.
+    Replace chords in multiple measures according to a dictionary mapping.
 
     Args:
-        score (music21.stream.Score): Score to modify.
-        replacements (dict): Dictionary with measure numbers as keys and
-                             (root, quality) tuples as values.
+        score (music21.stream.Score): The score to modify.
+        replacements (dict): Dictionary mapping measure_number -> (root, quality)
     """
-    for measure_number, (root, quality) in replacements.items():
-        replace_chord_in_measure(score, measure_number, root, quality)
+    for measure_num, (root, quality) in replacements.items():
+        replace_chord_in_measure(score, measure_num, root, quality)
