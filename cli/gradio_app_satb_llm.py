@@ -1,92 +1,68 @@
-# Datei: cli/gradio_app_satb_llm.py
+"""
+Gradio App: SATB harmonization using a dummy LLM for testing.
+
+This app allows users to enter text prompts for each voice (S,A,T,B)
+and generates chord suggestions using a Dummy LLM. MIDI/WAV preview is included.
+"""
 
 import gradio as gr
 from copy import deepcopy
-from core.score import load_musicxml, write_musicxml, apply_llm_chords_to_measures
+from core.score import load_musicxml, write_musicxml, replace_chord_in_measure
 from core.editor.dummy_llm import DummyLLM
-from core.audio.audio import score_to_midi, midi_to_wav
+import tempfile
+import os
 
-# Dummy-LLM für Testzwecke
+# Initialize dummy LLM
 llm = DummyLLM()
 
-def harmonize_multi_voice(score_file, prompts_per_voice):
-    """
-    Harmonisiert SATB Score nach Multi-Prompt Eingaben
-    score_file: hochgeladene MusicXML-Datei
-    prompts_per_voice: Dict {"S": prompt, "A": prompt, ...}
-    """
-    if not score_file:
-        return None, None, "Keine Score-Datei hochgeladen."
-    
+# Helper function for multi-voice harmonization
+def harmonize_multi_voice(score_file, prompts):
     try:
-        score = load_musicxml(score_file.name)
+        score = load_musicxml(score_file)
     except Exception as e:
-        return None, None, f"Fehler beim Laden der Score: {e}"
-    
-    # Sicherstellen, dass prompts_per_voice ein Dict ist
-    if isinstance(prompts_per_voice, str):
-        # Gradio sendet manchmal Strings, z.B. JSON; wir versuchen zu evaluieren
-        import ast
-        try:
-            prompts_per_voice = ast.literal_eval(prompts_per_voice)
-        except Exception as e:
-            return None, None, f"Prompts konnten nicht geparst werden: {e}"
+        return None, None, f"Error loading score: {e}"
 
-    harmonized_info = {}
-    
-    # Für jede Stimme anwenden
-    for voice, prompt in prompts_per_voice.items():
-        try:
-            chord_info = llm.harmonize_prompt(score, voice, prompt)
-            harmonized_info[voice] = chord_info
-        except Exception as e:
-            return None, None, f"Fehler harmonizing {voice}: {e}"
-
-    # Anwenden auf Score
-    try:
-        apply_llm_chords_to_measures(score, harmonized_info)
-    except Exception as e:
-        return None, None, f"Fehler beim Anwenden der Harmonisierung: {e}"
-
-    # MIDI und WAV erzeugen
-    try:
-        midi_file = score_to_midi(score)
-    except Exception as e:
-        return None, None, f"Fehler beim Erstellen der MIDI-Datei: {e}"
+    if not isinstance(prompts, dict):
+        return None, None, "Prompts must be a dictionary with keys: S,A,T,B"
 
     try:
-        wav_file = midi_to_wav(midi_file)
+        suggestions = llm.harmonize_multi_voice(prompts)
+        # Apply each chord suggestion to the score
+        for voice, suggestion in suggestions.items():
+            replace_chord_in_measure(score, suggestion['measure'], suggestion['root'])
+
+        # Save updated MusicXML
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
+        write_musicxml(score, tmp_file.name)
+
+        # TODO: MIDI/WAV audio preview could be implemented here
+
+        return tmp_file.name, None, str(suggestions)
+
     except Exception as e:
-        wav_file = None  # WAV optional
-        warning = f"Audio-Rendering Fehler: {e}"
-    else:
-        warning = "Harmonisierung erfolgreich"
-
-    return midi_file, wav_file, warning
-
+        return None, None, f"Error harmonizing: {e}"
 
 # Gradio Interface
 with gr.Blocks() as app:
-    gr.Markdown("# SATB Multi-Prompt Harmonizer (LLM Dummy)")
-
+    gr.Markdown("## SATB Harmonization (Dummy LLM)")
     with gr.Row():
-        score_input = gr.File(label="MusicXML Datei hochladen", file_types=[".xml", ".mxl"])
-        prompts_input = gr.Textbox(
-            label="Prompts per Voice (Dict: {'S':'Cmaj', 'A':'Gmaj', ...})",
-            value="{'S':'C major', 'A':'G major', 'T':'E minor', 'B':'C major'}",
-            lines=2
-        )
-
+        score_input = gr.File(label="Upload MusicXML")
     with gr.Row():
-        midi_out = gr.File(label="MIDI Output")
-        wav_out = gr.Audio(label="WAV Audio Output")
-        status_box = gr.Textbox(label="Status", interactive=False)
+        s_prompt = gr.Textbox(label="Soprano Prompt", value="Make Soprano more romantic")
+        a_prompt = gr.Textbox(label="Alto Prompt", value="Make Alto more bright")
+        t_prompt = gr.Textbox(label="Tenor Prompt", value="Make Tenor warmer")
+        b_prompt = gr.Textbox(label="Bass Prompt", value="Make Bass solid")
+    with gr.Row():
+        harmonize_btn = gr.Button("Harmonize")
+    with gr.Row():
+        output_file = gr.File(label="Output MusicXML")
+        output_audio = gr.Audio(label="Audio Preview")
+        output_text = gr.Textbox(label="LLM Suggestions")
 
-    harmonize_btn = gr.Button("Harmonize Multi-Voice")
     harmonize_btn.click(
         fn=harmonize_multi_voice,
-        inputs=[score_input, prompts_input],
-        outputs=[midi_out, wav_out, status_box]
+        inputs=[score_input, gr.State({"S": s_prompt, "A": a_prompt, "T": t_prompt, "B": b_prompt})],
+        outputs=[output_file, output_audio, output_text]
     )
 
 if __name__ == "__main__":

@@ -1,0 +1,11 @@
+# Music notation & parsing
+music21>=6.1.0
+
+# Web interface
+gradio>=3.40.0
+
+# Audio playback & MIDI support
+pygame>=2.6.1
+
+# Optional: for development & testing
+pytest>=7.0.0
