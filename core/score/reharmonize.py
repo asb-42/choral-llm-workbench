@@ -1,45 +1,65 @@
-from music21 import chord, note, pitch, stream
-from copy import deepcopy
+from music21 import chord, pitch, note
 
-def make_chord(root, quality='major', base_octave=4):
+def make_chord(root: str, quality: str) -> chord.Chord:
     """
-    Erzeugt ein Chord-Objekt aus Root und Quality.
+    Create a chord based on root note and quality.
+
+    Args:
+        root (str): Root note of the chord (e.g., 'C', 'D#', 'F').
+        quality (str): Chord quality ('major', 'minor', etc.).
+
+    Returns:
+        music21.chord.Chord: Constructed chord object.
+
+    Raises:
+        ValueError: If root note is invalid.
     """
+    base_octave = 4  # Default octave
     try:
         root_pitch = pitch.Pitch(f"{root}{base_octave}")
-    except Exception:
-        raise ValueError(f"Ungültiger Root-Pitch: {root}")
+    except pitch.AccidentalException:
+        raise ValueError(f"Invalid root pitch: {root}")
 
-    if quality.lower() == 'major':
-        intervals = [0, 4, 7]
-    elif quality.lower() == 'minor':
-        intervals = [0, 3, 7]
+    if quality.lower() == "major":
+        new_chord = chord.Chord([root_pitch, root_pitch.transpose(4), root_pitch.transpose(7)])
+    elif quality.lower() == "minor":
+        new_chord = chord.Chord([root_pitch, root_pitch.transpose(3), root_pitch.transpose(7)])
     else:
-        intervals = [0, 4, 7]  # default zu major
+        # Default to major if unknown quality
+        new_chord = chord.Chord([root_pitch, root_pitch.transpose(4), root_pitch.transpose(7)])
 
-    pitches = [root_pitch.transpose(i) for i in intervals]
-    return chord.Chord(pitches)
+    return new_chord
 
-def replace_chord_in_measure(score, measure_number, new_root, quality='major'):
+def replace_chord_in_measure(score, measure_number: int, new_root: str, quality: str = "major"):
     """
-    Ersetzt den Akkord in einem bestimmten Takt.
+    Replace the chord in a specific measure of the score.
+
+    Args:
+        score (music21.stream.Score): The score to modify.
+        measure_number (int): Measure index (1-based).
+        new_root (str): New root note for the chord.
+        quality (str, optional): Chord quality. Defaults to "major".
     """
+    measure = score.measure(measure_number)
+    if measure is None:
+        return
+
+    # Remove existing chords
+    for c in measure.getElementsByClass(chord.Chord):
+        measure.remove(c)
+
+    # Add new chord
     new_ch = make_chord(new_root, quality)
-    try:
-        m = score.measure(measure_number)
-        # Alte Chords löschen
-        for c in m.recurse().getElementsByClass(chord.Chord):
-            m.remove(c)
-        m.append(new_ch)
-    except Exception as e:
-        raise ValueError(f"Fehler beim Ersetzen des Chords in Takt {measure_number}: {e}")
+    measure.insert(0, new_ch)
 
-def replace_chords_in_measures(score, chords_data):
+def replace_chords_in_measures(score, replacements: dict):
     """
-    Wrapper für mehrere Chord-Ersatz-Aktionen.
-    chords_data: Liste von dicts z.B.
-        [{'measure': 1, 'root': 'C', 'quality': 'major'}, ...]
+    Replace multiple chords in a score.
+
+    Args:
+        score (music21.stream.Score): Score to modify.
+        replacements (dict): Dictionary with measure numbers as keys and
+                             (root, quality) tuples as values.
     """
-    for data in chords_data:
-        replace_chord_in_measure(score, data['measure'], data['root'], data.get('quality', 'major'))
-    return score
+    for measure_number, (root, quality) in replacements.items():
+        replace_chord_in_measure(score, measure_number, root, quality)
