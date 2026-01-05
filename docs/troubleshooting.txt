@@ -1,0 +1,45 @@
+Pinokio Troubleshooting
+
+Some common issues when running the Gradio apps on Pinokio and their solutions:
+
+1. FluidSynth / SoundFont errors
+
+fluidsynth: error: fluid_is_soundfont(): fopen() failed: 'File does not exist.'
+
+Solution: Make sure a SoundFont is installed at ~/.fluidsynth/default_sound_font.sf2. You can download a free General MIDI SoundFont, e.g.:
+
+mkdir -p ~/.fluidsynth
+wget https://schristiancollins.com/generaluser.sf2 -O ~/.fluidsynth/default_sound_font.sf2
+
+
+2. pygame audio playback errors
+
+pygame.error: Couldn't open timidity.cfg
+
+Solution: Ensure that timidity is installed on Pinokio:
+
+sudo apt install timidity
+
+
+3. Missing Python packages / ImportErrors
+
+Always activate the virtual environment before running the apps:
+
+source .venv/bin/activate
+pip install -r requirements.txt
+
+
+4. MIDI → WAV rendering issues
+
+Ensure both FluidSynth and pydub dependencies are correctly installed. Some apps require ffmpeg:
+
+sudo apt install ffmpeg
+
+
+5. LLM not loaded or prompt parsing fails
+
+Currently, a DummyLLM is used for testing.
+
+Real LLMs (Mistral, GPT-based) can be configured via Ollama or other interfaces.
+
+Prompts must follow the syntax expected by the LLM, e.g., Make measure 1 more romantic.
