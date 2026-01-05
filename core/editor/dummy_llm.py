@@ -1,44 +1,54 @@
-# core/editor/dummy_llm.py
+"""
+Dummy LLM module for testing harmonization functionality.
 
-from typing import Dict, Union
+This class provides a mock interface for an LLM that generates chord suggestions
+based on textual prompts. It is meant for development and testing purposes only.
+"""
+
+from typing import Dict
 
 class DummyLLM:
     """
-    Dummy-LLM für Testzwecke.
-    Kann entweder einen einzelnen Prompt (str) oder Multi-Prompt (dict pro Stimme) verarbeiten.
+    Dummy Language Model for chord harmonization.
     """
 
-    def harmonize_prompt(self, prompt: Union[str, Dict[str, str]]) -> Dict[str, Dict]:
+    def __init__(self):
         """
-        Harmonisiert basierend auf dem Prompt.
+        Initialize the dummy LLM.
+        """
+        # In a real LLM, you might load model weights or connect to an API
+        self.name = "DummyLLM"
 
-        Parameters:
-        -----------
-        prompt : str | dict
-            Entweder ein einzelner Prompt für alle Stimmen oder ein dict {"S": "...", "A": "...", ...}
+    def harmonize_prompt(self, prompt: str) -> Dict[str, str]:
+        """
+        Generate a chord suggestion for a single-voice prompt.
+
+        Args:
+            prompt (str): A textual prompt describing the desired harmonization.
 
         Returns:
-        --------
-        Dict[str, Dict]: Dummy-Harmonisierungsinformationen pro Stimme.
+            dict: Dictionary with measure info and chord suggestion.
+                  Example: {'measure': 1, 'root': 'C', 'quality': 'major'}
         """
-        # Dummy-Logik: fixe Akkorde pro Stimme
-        default_chords = {
-            "S": {"measure": 1, "root": "C", "quality": "major"},
-            "A": {"measure": 1, "root": "G", "quality": "major"},
-            "T": {"measure": 1, "root": "E", "quality": "major"},
-            "B": {"measure": 1, "root": "C", "quality": "major"},
-        }
+        # This is a fixed dummy implementation
+        return {'measure': 1, 'root': 'C', 'quality': 'major'}
 
-        if isinstance(prompt, str):
-            # Single prompt für alle Stimmen -> gleiche Chords
-            return default_chords
-        elif isinstance(prompt, dict):
-            # Multi-Prompt: jede Stimme bekommt Dummy-Werte + Logik pro Stimme
-            output = {}
-            for voice, voice_prompt in prompt.items():
-                # Dummy-Logik: nur Buchstaben der Stimme ändern, um zu variieren
-                root = default_chords.get(voice, {"root": "C"})["root"]
-                output[voice] = {"measure": 1, "root": root, "quality": "major"}
-            return output
-        else:
-            raise ValueError("Prompt muss ein str oder dict sein")
+    def harmonize_multi_voice(self, prompts: Dict[str, str]) -> Dict[str, Dict[str, str]]:
+        """
+        Generate chord suggestions for multiple voices.
+
+        Args:
+            prompts (dict): Dictionary mapping voice names ('S','A','T','B') to prompts.
+
+        Returns:
+            dict: Dictionary mapping voice -> chord suggestion.
+                  Example:
+                  {
+                      'S': {'measure': 1, 'root': 'C', 'quality': 'major'},
+                      'A': {'measure': 1, 'root': 'G', 'quality': 'major'},
+                      'T': {'measure': 1, 'root': 'E', 'quality': 'major'},
+                      'B': {'measure': 1, 'root': 'C', 'quality': 'major'}
+                  }
+        """
+        # Generate a simple default for testing
+        return {voice: {'measure': 1, 'root': 'C', 'quality': 'major'} for voice in prompts}
