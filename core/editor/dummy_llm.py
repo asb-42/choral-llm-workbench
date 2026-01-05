@@ -1,54 +1,35 @@
-"""
-Dummy LLM module for testing harmonization functionality.
-
-This class provides a mock interface for an LLM that generates chord suggestions
-based on textual prompts. It is meant for development and testing purposes only.
-"""
-
-from typing import Dict
+# core/editor/dummy_llm.py
 
 class DummyLLM:
     """
-    Dummy Language Model for chord harmonization.
+    Dummy LLM for testing purposes.
+    Returns fixed harmonization outputs, optionally per voice.
     """
 
     def __init__(self):
-        """
-        Initialize the dummy LLM.
-        """
-        # In a real LLM, you might load model weights or connect to an API
-        self.name = "DummyLLM"
+        # Optional: kann internal state oder history speichern
+        self.history = []
 
-    def harmonize_prompt(self, prompt: str) -> Dict[str, str]:
+    def harmonize_prompt(self, prompt: str, voice: str = None):
         """
-        Generate a chord suggestion for a single-voice prompt.
+        Harmonize a given prompt.
 
         Args:
-            prompt (str): A textual prompt describing the desired harmonization.
+            prompt (str): The textual prompt to harmonize.
+            voice (str, optional): Voice identifier ('S', 'A', 'T', 'B').
+                                   Ignored in dummy implementation.
 
         Returns:
-            dict: Dictionary with measure info and chord suggestion.
-                  Example: {'measure': 1, 'root': 'C', 'quality': 'major'}
+            dict: Dummy harmonization output.
         """
-        # This is a fixed dummy implementation
-        return {'measure': 1, 'root': 'C', 'quality': 'major'}
+        # Speichere Prompt in history (optional)
+        self.history.append({"prompt": prompt, "voice": voice})
 
-    def harmonize_multi_voice(self, prompts: Dict[str, str]) -> Dict[str, Dict[str, str]]:
-        """
-        Generate chord suggestions for multiple voices.
+        # Dummy harmonization: immer Measure 1, Root C, Quality major
+        result = {
+            "measure": 1,
+            "root": "C",
+            "quality": "major"
+        }
 
-        Args:
-            prompts (dict): Dictionary mapping voice names ('S','A','T','B') to prompts.
-
-        Returns:
-            dict: Dictionary mapping voice -> chord suggestion.
-                  Example:
-                  {
-                      'S': {'measure': 1, 'root': 'C', 'quality': 'major'},
-                      'A': {'measure': 1, 'root': 'G', 'quality': 'major'},
-                      'T': {'measure': 1, 'root': 'E', 'quality': 'major'},
-                      'B': {'measure': 1, 'root': 'C', 'quality': 'major'}
-                  }
-        """
-        # Generate a simple default for testing
-        return {voice: {'measure': 1, 'root': 'C', 'quality': 'major'} for voice in prompts}
+        return result

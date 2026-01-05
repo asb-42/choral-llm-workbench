@@ -1,27 +1,21 @@
-# File: tests/test_gradio_audio_wav_tuning_ui.py
-
-import tempfile
-from pathlib import Path
-from core.audio import generate_test_midi, midi_to_wav
-from core.config import Config
+import os
+from core.audio import render_audio_with_tuning
 
 def test_gradio_audio_tuning():
-    config = Config()
-    default_tuning = config.get("base_tuning", 432)
-    print(f"Default base tuning from config: {default_tuning} Hz")
+    # Beispiel-MusicXML
+    musicxml_path = "tests/data/test_score.musicxml"
+    if not os.path.exists(musicxml_path):
+        print(f"MusicXML test file not found: {musicxml_path}")
+        return
 
-    # Temporäre MIDI-Datei erzeugen
-    midi_path = Path(tempfile.mktemp(suffix=".mid"))
-    generate_test_midi(str(midi_path))
-    print(f"MIDI file generated: {midi_path}")
+    base_tunings = [432.0, 440.0, 443.0]
+    soundfont_path = os.path.expanduser("~/.fluidsynth/default_sound_font.sf2")
 
-    # Test für alle Base-Tunings
-    for tuning in [432, 440, 443]:
-        wav_path = Path(tempfile.mktemp(suffix=f"_{tuning}Hz.wav"))
-        print(f"Rendering WAV at {tuning} Hz...")
+    for tuning in base_tunings:
         try:
-            midi_to_wav(str(midi_path), str(wav_path), base_tuning=tuning)
-            print(f"WAV file generated: {wav_path}")
+            print(f"\nRendering WAV at {tuning} Hz using SoundFont {soundfont_path} ...")
+            wav_path = render_audio_with_tuning(musicxml_path, base_tuning=tuning, soundfont_path=soundfont_path)
+            print(f"WAV rendered at {tuning} Hz: {wav_path}")
         except Exception as e:
             print(f"Error rendering WAV at {tuning} Hz: {e}")
 
