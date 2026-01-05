@@ -1,48 +1,45 @@
-from music21 import chord, note, pitch
+from music21 import chord, note, pitch, stream
+from copy import deepcopy
 
-# Hilfsfunktion: Akkord aus Root und Qualität
-def make_chord(root: str, quality: str = "major"):
+def make_chord(root, quality='major', base_octave=4):
     """
-    root: Grundton, z.B. 'A' oder 'F'
-    quality: 'major' oder 'minor'
+    Erzeugt ein Chord-Objekt aus Root und Quality.
     """
-    base_octave = 4
     try:
         root_pitch = pitch.Pitch(f"{root}{base_octave}")
     except Exception:
         raise ValueError(f"Ungültiger Root-Pitch: {root}")
 
-    # Intervalle für Dur/Moll
-    if quality.lower() == "major":
-        intervals = [0, 4, 7]  # Grundton, große Terz, Quinte
+    if quality.lower() == 'major':
+        intervals = [0, 4, 7]
+    elif quality.lower() == 'minor':
+        intervals = [0, 3, 7]
     else:
-        intervals = [0, 3, 7]  # Grundton, kleine Terz, Quinte
+        intervals = [0, 4, 7]  # default zu major
 
-    notes = [note.Note(root_pitch.transpose(i)) for i in intervals]
-    return chord.Chord(notes)
+    pitches = [root_pitch.transpose(i) for i in intervals]
+    return chord.Chord(pitches)
 
-
-def replace_chord_in_measure(score, measure_number, new_root_with_quality):
+def replace_chord_in_measure(score, measure_number, new_root, quality='major'):
     """
-    Ersetzt Akkord in allen Stimmen eines Taktes.
-    new_root_with_quality: z.B. "Am" oder "F"
+    Ersetzt den Akkord in einem bestimmten Takt.
     """
-    # Root und Qualität trennen
-    if new_root_with_quality.endswith("m"):
-        root = new_root_with_quality[:-1]
-        quality = "minor"
-    else:
-        root = new_root_with_quality
-        quality = "major"
+    new_ch = make_chord(new_root, quality)
+    try:
+        m = score.measure(measure_number)
+        # Alte Chords löschen
+        for c in m.recurse().getElementsByClass(chord.Chord):
+            m.remove(c)
+        m.append(new_ch)
+    except Exception as e:
+        raise ValueError(f"Fehler beim Ersetzen des Chords in Takt {measure_number}: {e}")
 
-    # Akkord erzeugen
-    new_ch = make_chord(root, quality)
-
-    # Takt in allen Stimmen ersetzen
-    for p in score.parts:
-        measure = p.measure(measure_number)
-        if measure is not None:
-            # Alte Noten löschen
-            for n in list(measure.notes):
-                measure.remove(n)
-            measure.insert(0, new_ch)
+def replace_chords_in_measures(score, chords_data):
+    """
+    Wrapper für mehrere Chord-Ersatz-Aktionen.
+    chords_data: Liste von dicts z.B.
+        [{'measure': 1, 'root': 'C', 'quality': 'major'}, ...]
+    """
+    for data in chords_data:
+        replace_chord_in_measure(score, data['measure'], data['root'], data.get('quality', 'major'))
+    return score
