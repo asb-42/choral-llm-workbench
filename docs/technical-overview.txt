@@ -1,0 +1,99 @@
+Technical Overview – Choral LLM Workbench
+
+1. Overview
+
+The Choral LLM Workbench is a Python-based application for harmonizing choral music and generating musical suggestions using rule-based algorithms and (optionally) large language model (LLM) simulations. It provides multiple interfaces for users:
+
+* CLI tools for analysis and harmonization of MusicXML files.
+* Gradio-based web interfaces for interactive editing, session management, and audio preview (MIDI/WAV).
+* Automated tests and session management to track user edits and undo/redo history.
+
+The system is modular and designed to allow experimentation with AI-assisted harmony generation, while keeping core musical operations deterministic and testable.
+
+
+2. Design Principles
+
+* Modularity:
+** Clear separation between music representation (core/score), session management (core/editor), AI interactions (core/editor/dummy_llm.py), and audio rendering (core/audio.py).
+** Each module exposes a minimal, explicit API.
+
+* Testability:
+** Each functionality (score manipulation, LLM simulation, MIDI/WAV rendering) has dedicated test scripts in tests/.
+** Dummy LLM allows for deterministic outputs for tests without requiring an external AI model.
+
+* User-Focused Interactivity:
+** Gradio apps provide multi-prompt harmonization per voice.
+** Audio previews allow instant feedback on harmonization changes.
+** Session tracking ensures users can undo/redo changes without losing history.
+
+* Configuration Flexibility:
+** Global configuration (config.py) defines runtime parameters such as base audio tuning (432 Hz, 440 Hz, 443 Hz), default sound fonts, and LLM settings.
+
+* Fail-Safe Defaults:
+** Missing or invalid inputs trigger informative error messages rather than crashes.
+** Dummy-LLM ensures the app remains operational even without a real LLM backend.
+
+
+3. Component Architecture
+
+3.1 Core Modules
+
+* core/score - MusicXML parsing, score representation, chord analysis, harmonization algorithms, chord replacement.
+
+* core/editor - Session management, history/undo-redo, ghost chord suggestions, integration with LLM prompts.
+
+* core/audio - MIDI generation, conversion to WAV using FluidSynth, tuning adjustments, sound font management.
+
+* core/config.py - Central configuration for tuning, file paths, and default parameters.
+
+* core/editor/dummy_llm.py - Simulated LLM for predictable harmonization outputs for testing and development.
+
+
+3.2 CLI Applications (cli/)
+
+* analyze_harmony.py - Analyze chord structures of a MusicXML file.
+
+* llm_harmonize.py - Apply harmonization using prompts via LLM or dummy LLM.
+
+* gradio_app_*.py - Launch interactive Gradio apps for editing, multi-prompt harmonization, session management, and audio preview.
+
+
+3.3 Gradio Apps
+
+* Single-voice or multi-voice harmonization per user prompts.
+* Session management allows iterative editing while preserving history.
+* Audio preview provides MIDI/WAV feedback with configurable base tuning.
+
+
+3.4 Audio Rendering Pipeline
+
+* Score is exported as a MIDI file.
+* MIDI is converted to WAV using FluidSynth.
+* Configurable base tuning (432 Hz, 440 Hz, 443 Hz) applied.
+* Resulting WAV is provided to the Gradio interface for playback.
+
+
+4. Interaction Flow
+
+* User uploads MusicXML → CLI or Gradio interface loads into EditorSession.
+
+* User issues a harmonization prompt → Dummy LLM or real LLM processes prompt → chords are suggested.
+
+* Session applies chord replacements → History is updated.
+
+* Audio preview → MIDI generated from updated score → WAV rendered with selected tuning.
+
+* Undo/Redo or Ghost chords → User can experiment without losing previous states.
+
+
+5. Key Design Notes
+
+* Dummy LLM: Acts as a stand-in for real LLM, returns predictable chord suggestions per prompt.
+
+* Ghost chords: Temporary chord suggestions for user review.
+
+* Session tracking: Each session maintains current_score, history, future, and ghost suggestions.
+
+* Configurable audio: All audio parameters centralized in config.py, allowing global tuning and sound font changes without code edits.
+
+This overview provides a high-level map of the system, its design philosophy, and the interaction of components. It serves as a reference for developers and contributors to understand how the Choral LLM Workbench functions end-to-end.
