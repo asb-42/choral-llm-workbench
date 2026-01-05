@@ -1,24 +1,21 @@
-from music21 import stream, chord, harmony
+from music21 import harmony, chord, stream
 
-def analyze_chords(score: stream.Score) -> dict:
+def analyze_chords(score: stream.Score):
     """
-    Return a dictionary: {measure_number: chord_symbol}
-    for each measure in the score.
-    """
-    chords_per_measure = {}
+    Analyze the chords of a score and return a list of chord symbols.
 
-    # Wir betrachten nur die erste Stimme pro Part (vereinfacht)
-    for measure in score.parts[0].getElementsByClass(stream.Measure):
-        measure_number = measure.number
-        c = chord.Chord(measure.notes)
-        if len(c.pitches) == 0:
-            chords_per_measure[measure_number] = "N.C."
-            continue
-        # --- try/except korrekt eingerückt ---
+    Args:
+        score (music21.stream.Score): The score to analyze.
+
+    Returns:
+        List[music21.harmony.ChordSymbol]: List of chord symbols in the score.
+    """
+    chords_list = []
+    for c in score.chords:  # Iterate over all chords in the score
         try:
             cs = harmony.chordSymbolFromChord(c)
-            chords_per_measure[measure_number] = cs.figure
+            chords_list.append(cs)
         except Exception:
-            chords_per_measure[measure_number] = "unknown"
-
-    return chords_per_measure
+            # Skip chords that cannot be analyzed
+            continue
+    return chords_list
