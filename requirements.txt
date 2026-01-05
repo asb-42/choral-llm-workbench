@@ -1,11 +1,24 @@
-# Music notation & parsing
-music21>=6.1.0
+# Core music processing
+music21>=7.2.1
 
-# Web interface
-gradio>=3.40.0
+# Web UI
+gradio>=3.40
+
+# Audio playback
+pygame>=2.6
+pyfluidsynth>=2.3
+
+# Numerical processing (if needed for audio)
+numpy>=1.25
+scipy>=1.12
+
+# Environment variables / config
+python-dotenv>=1.1
 
 # Audio playback & MIDI support
 pygame>=2.6.1
 
 # Optional: for development & testing
 pytest>=7.0.0
+
+# mido python-rtmidi

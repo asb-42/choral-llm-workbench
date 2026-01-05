@@ -37,6 +37,20 @@ The workbench combines traditional music representation via **MusicXML** with AI
    - Real-time feedback and audio preview capabilities.
 
 
+## Installation Requirements
+
+- Python 3.12
+- Packages (install via `pip install -r requirements.txt`):
+  - `gradio`
+  - `music21`
+  - `pygame`
+  - `mido`
+  - `anyio`
+- A **General MIDI SoundFont** for audio rendering:
+  - Path: `~/.fluidsynth/default_sound_font.sf2`
+  - Recommended: [FluidR3_GM.sf2](https://member.keymusician.com/Member/FluidR3_GM/index.html)
+- Optional audio tunings supported: **432 Hz, 440 Hz, 443 Hz**.
+
 
 ## Getting Started
 
@@ -55,9 +69,23 @@ source .venv/bin/activate       # Linux/macOS
 
 pip install -r requirements.txt
 
-4. Run an example Gradio interface:
+4. Download a default SoundFont to ~/.fluidsynth/default_sound_font.sf2
+
+Alternatively if you want to use Pinokio:
+
+Run the installation script:
+
+bash install_pinokio.sh
+
+
+5. Activate the virtual environment:
+
+source .venv/bin/activate
+
+6. Run an example Gradio interface:
 
 python cli/gradio_app_satb_llm.py
+
 
 
 ## Usage Notes
@@ -67,6 +95,38 @@ Currently, a Dummy LLM is included for testing; real LLM models can be integrate
 All scores must be in MusicXML format. .mxl compressed MusicXML is supported.
 
 Audio previews require a working MIDI synthesizer or SoundFont.
+
+
+## Configuration
+
+The application reads global settings from `core/config.py`:
+
+
+# Base tuning for audio preview in Hz
+BASE_TUNING = 432.0
+
+
+## Testing Audio Rendering
+
+A dedicated test script is provided to verify WAV rendering:
+
+python tests/test_gradio_audio_wav.py
+
+This script
+
+- Loads a test MusicXML score.
+- Generates a temporary MIDI file.
+- Converts it to WAV files at 432 Hz, 440 Hz, and 443 Hz.
+- Requires a valid SoundFont in ~/.fluidsynth/default_sound_font.sf2.
+
+
+## Directory Structure
+
+./cli/               # Gradio app entry points
+./core/              # Core logic (score handling, audio, dummy LLM)
+./tests/             # Unit and integration tests
+./docs/              # Documentation (this README.md)
+
 
 
 ## Goals and Future Work
