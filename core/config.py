@@ -1,20 +1,27 @@
-"""
-Global configuration for Choral LLM Workbench.
-"""
+import yaml
+from pathlib import Path
 
-from enum import Enum
+class Config:
+    """
+    Globale Konfigurationsklasse für die Choral-LLM-Workbench.
+    Lädt Einstellungen aus config.yaml.
+    """
 
-class TuningFrequency(Enum):
-    HZ_432 = 432
-    HZ_440 = 440
-    HZ_443 = 443
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+            config_path = Path(__file__).parent.parent / "config.yaml"
+        self.config_path = Path(config_path)
+        self._data = self._load_config()
 
-# Default base tuning
-BASE_TUNING = TuningFrequency.HZ_432
+        # Audio-Grundeinstellungen
+        self.audio_tuning_default = self._data.get("audio_tuning_default", 432.0)
+        self.audio_tuning_options = self._data.get("audio_tuning_options", [432.0, 440.0, 443.0])
 
-AUDIO_BASE_TUNING_HZ = 432  # Default base tuning in Hz
-SUPPORTED_TUNINGS = [432, 440, 443]
+    def _load_config(self):
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {self.config_path}")
+        with open(self.config_path, "r") as f:
+            return yaml.safe_load(f)
 
-# Weitere globale Einstellungen können hier hinzugefügt werden
-# z.B. default MIDI instrument, default SoundFont-Pfad etc.
-DEFAULT_SOUNDFONT_PATH = "~/.fluidsynth/default_sound_font.sf2"
+    def get(self, key, default=None):
+        return self._data.get(key, default)

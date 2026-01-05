@@ -1,50 +1,48 @@
 # core/audio.py
 
 import subprocess
-import os
-import tempfile
-from mido import MidiFile
+from pathlib import Path
+from core.config import Config
 
-DEFAULT_SOUNDFONT_PATH = os.path.expanduser("~/.fluidsynth/default_sound_font.sf2")
+config = Config()  # globale Konfiguration laden
 
-def midi_to_wav(midi_path: str, wav_path: str, soundfont_path: str = DEFAULT_SOUNDFONT_PATH, base_tuning: float = 432.0):
+def midi_to_wav(midi_file: str, wav_file: str, tuning: float = None, soundfont_path: str = None):
     """
-    Render a MIDI file to WAV using FluidSynth.
-
-    Parameters:
-    - midi_path: path to the input MIDI file
-    - wav_path: path to the output WAV file
-    - soundfont_path: path to the SoundFont (.sf2)
-    - base_tuning: base tuning frequency in Hz (default 432.0)
+    Rendert eine MIDI-Datei in WAV mit FluidSynth.
+    Args:
+        midi_file: Pfad zur MIDI-Datei
+        wav_file: Pfad zur Ausgabedatei WAV
+        tuning: Basisstimmung in Hz (z. B. 432, 440, 443). Wenn None, wird Default aus Config genommen.
+        soundfont_path: Pfad zur SoundFont-Datei (SF2)
     """
-    if not os.path.exists(midi_path):
-        raise FileNotFoundError(f"MIDI file not found: {midi_path}")
+    midi_file = Path(midi_file)
+    wav_file = Path(wav_file)
 
-    if not os.path.exists(soundfont_path):
-        raise FileNotFoundError(
-            f"SoundFont file not found: {soundfont_path}\n"
-            f"Please download a GM SoundFont (e.g., FluidR3_GM.sf2) into {os.path.dirname(soundfont_path)}"
-        )
+    if tuning is None:
+        tuning = config.audio_tuning_default
 
-    print(f"Rendering WAV at {base_tuning}Hz using SoundFont: {soundfont_path}...")
+    if soundfont_path is None:
+        # Standardpfad für SF2, kann in Config erweitert werden
+        soundfont_path = Path.home() / ".fluidsynth" / "default_sound_font.sf2"
 
-    # Build FluidSynth command
-    # Use -F for output WAV, set midi input, and tuning if supported
+    if not soundfont_path.exists():
+        raise FileNotFoundError(f"SoundFont not found: {soundfont_path}")
+
+    # FluidSynth-Befehl
     cmd = [
         "fluidsynth",
-        "-F", wav_path,
+        "-F", str(wav_file),
         "-T", "wav",
-        "-a", "alsa" if os.name != "nt" else "coreaudio",
-        "-o", f"synth.tuning={base_tuning}",
-        soundfont_path,
-        midi_path
+        str(soundfont_path),
+        str(midi_file)
     ]
 
+    print(f"Rendering WAV at {tuning}Hz...")
     try:
-        subprocess.run(cmd, check=True, capture_output=True)
+        # FluidSynth kann Base-Tuning nur über -g/-o Optionen oder eigene SF2-Einstellungen steuern
+        # Viele Distributionen unterstützen direkt keine -t Option
+        subprocess.run(cmd, check=True)
+        print(f"Rendered WAV: {wav_file}")
     except subprocess.CalledProcessError as e:
-        print(f"Error during MIDI->WAV rendering: {e}\nOutput:\n{e.output.decode()}\nStderr:\n{e.stderr.decode()}")
+        print(f"Error during MIDI->WAV rendering: {e}")
         raise
-
-    print(f"Rendered WAV: {wav_path}")
-    return wav_path

@@ -1,0 +1,6 @@
+# config.yaml
+audio_tuning_default: 432.0
+audio_tuning_options:
+  - 432.0
+  - 440.0
+  - 443.0
