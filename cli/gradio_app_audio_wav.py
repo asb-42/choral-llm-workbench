@@ -1,62 +1,51 @@
 import gradio as gr
-from core.score import load_musicxml, write_musicxml, replace_chord_in_measure
-from llm.ollama_adapter import OllamaAdapter
 import tempfile
-from midi2audio import FluidSynth
-import os
+from core.score import load_musicxml
+from core.audio import midi_to_wav
+from music21 import converter
 
-def reharmonize_with_audio(xml_file, measure_number, prompt):
-    # Datei laden
-    score = load_musicxml(xml_file.name)
-
-    # LLM-Adapter (Stub)
-    llm = OllamaAdapter()
-    suggestion = llm.generate_harmony(prompt, context={})
-
-    # Prompt parsen
-    valid_notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    root_note = None
-    for w in prompt.strip().split():
-        if w.upper() in valid_notes:
-            root_note = w.upper()
-            break
-    if root_note is None:
-        return None, None, "Error: No valid root note found in prompt (use C, D#, F, etc.)"
-
-    # Takt ersetzen
-    replace_chord_in_measure(score, measure_number, root_note)
-
-    # Temporäre MusicXML-Ausgabe
-    tmp_xml = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
-    write_musicxml(score, tmp_xml.name)
-
-    # MIDI erzeugen
-    tmp_midi = tempfile.NamedTemporaryFile(delete=False, suffix=".midi")
-    score.write('midi', fp=tmp_midi.name)
-
-    # WAV erzeugen mit SoundFont
-    fs = FluidSynth("/usr/share/sounds/sf2/FluidR3_GM.sf2")  # SoundFont angeben
-    tmp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    fs.midi_to_audio(tmp_midi.name, tmp_wav.name)
-
-    return tmp_xml.name, tmp_wav.name, f"Applied LLM suggestion: '{root_note}'"
+def render_audio(xml_file, soundfont_path, base_tuning):
+    try:
+        # Score laden
+        score = load_musicxml(xml_file.name)
+        
+        # Temporäre Dateien für MIDI/WAV
+        tmp_midi = tempfile.NamedTemporaryFile(suffix=".mid", delete=False)
+        tmp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        
+        # Score als MIDI schreiben
+        score.write("midi", fp=tmp_midi.name)
+        
+        # MIDI in WAV konvertieren
+        midi_to_wav(tmp_midi.name, tmp_wav.name,
+                    soundfont_path=soundfont_path,
+                    base_tuning=float(base_tuning))
+        
+        return tmp_midi.name, tmp_wav.name, "Audio rendering completed!"
+    
+    except Exception as e:
+        return None, None, f"Error rendering audio: {e}"
 
 # Gradio Interface
-iface = gr.Interface(
-    fn=reharmonize_with_audio,
-    inputs=[
-        gr.File(label="MusicXML Input"),
-        gr.Number(label="Measure Number", value=1),
-        gr.Textbox(label="LLM Prompt", placeholder="e.g., Use C major")
-    ],
-    outputs=[
-        gr.File(label="Modified MusicXML Output"),
-        gr.Audio(label="Audio Preview"),   # WAV direkt abspielbar
-        gr.Textbox(label="Status")
-    ],
-    title="Choral LLM Workbench MVP with Audio Preview (WAV)",
-    description="Reharmonize a measure and play audio preview (MIDI → WAV)"
-)
+with gr.Blocks() as demo:
+    gr.Markdown("## Choral Workbench: Audio Preview (MIDI → WAV)")
+
+    with gr.Row():
+        xml_input = gr.File(label="MusicXML File", file_types=[".xml"])
+        soundfont_input = gr.File(label="SoundFont (.sf2)", file_types=[".sf2"])
+        base_tuning_input = gr.Dropdown(label="Base Tuning (Hz)",
+                                        choices=["432", "440", "443"],
+                                        value="432")
+
+    with gr.Row():
+        midi_output = gr.File(label="MIDI Output")
+        wav_output = gr.Audio(label="WAV Output")
+        status_output = gr.Textbox(label="Status")
+
+    render_btn = gr.Button("Render Audio")
+    render_btn.click(render_audio,
+                     inputs=[xml_input, soundfont_input, base_tuning_input],
+                     outputs=[midi_output, wav_output, status_output])
 
 if __name__ == "__main__":
-    iface.launch()
+    demo.launch()
