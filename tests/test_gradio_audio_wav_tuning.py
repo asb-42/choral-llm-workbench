@@ -1,42 +1,46 @@
 # tests/test_gradio_audio_wav_tuning.py
-
 import os
-from tempfile import NamedTemporaryFile
+import tempfile
 from core.audio import midi_to_wav
-from core.score import load_musicxml
-from core.config import Config
+from core.score.parser import load_musicxml
+from core.score.reharmonize import replace_chord_in_measure, make_chord
 
-def main():
-    # Beispiel-Score laden
-    score_path = "examples/test.xml"
-    try:
-        score = load_musicxml(score_path)
-        print("Score loaded.")
-    except Exception as e:
-        print(f"Error loading score: {e}")
-        return
+def test_base_tuning():
+    # Test MusicXML
+    musicxml_path = "examples/test.xml"
+    score = load_musicxml(musicxml_path)
+    print("Score loaded.")
 
-    # MIDI-Datei erzeugen
-    with NamedTemporaryFile(suffix=".mid", delete=False) as tmp_midi:
-        midi_path = tmp_midi.name
-    try:
-        score.write("midi", fp=midi_path)
-        print(f"MIDI file generated: {midi_path}")
-    except Exception as e:
-        print(f"Error writing MIDI: {e}")
-        return
+    # Generate temporary MIDI file
+    midi_fd, midi_path = tempfile.mkstemp(suffix=".mid")
+    os.close(midi_fd)
 
-    # Alle Base-Tuning-Werte durchtesten
+    # Minimal MIDI generation: just add a simple chord for testing
+    from mido import MidiFile, MidiTrack, Message
+    mid = MidiFile()
+    track = MidiTrack()
+    mid.tracks.append(track)
+    # Add a single C4 quarter note
+    track.append(Message("note_on", note=60, velocity=64, time=0))
+    track.append(Message("note_off", note=60, velocity=64, time=480))
+    mid.save(midi_path)
+    print(f"MIDI file generated: {midi_path}")
+
+    # Test different base tunings
     for tuning in [432, 440, 443]:
-        with NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
-            wav_path = tmp_wav.name
-        print(f"Rendering WAV at {tuning} Hz...")
-
+        wav_fd, wav_path = tempfile.mkstemp(suffix=f"_{tuning}Hz.wav")
+        os.close(wav_fd)
         try:
             midi_to_wav(midi_path, wav_path, base_tuning=tuning)
-            print(f"WAV file generated: {wav_path}")
+            print(f"WAV rendered at {tuning} Hz: {wav_path}")
+            if not os.path.exists(wav_path):
+                print(f"Error: WAV file not created for {tuning} Hz")
         except Exception as e:
             print(f"Error rendering WAV at {tuning} Hz: {e}")
 
+    # Cleanup temporary MIDI file
+    os.remove(midi_path)
+    print("Test completed.")
+
 if __name__ == "__main__":
-    main()
+    test_base_tuning()

@@ -1,27 +1,31 @@
+# File: core/config.py
+
 import yaml
-from pathlib import Path
+import os
+
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.yaml")
 
 class Config:
     """
-    Globale Konfigurationsklasse für die Choral-LLM-Workbench.
-    Lädt Einstellungen aus config.yaml.
+    Global configuration for the application.
+    Reads settings from config.yaml.
+    Provides access to base_tuning and other options.
     """
 
-    def __init__(self, config_path: str = None):
-        if config_path is None:
-            config_path = Path(__file__).parent.parent / "config.yaml"
-        self.config_path = Path(config_path)
-        self._data = self._load_config()
+    def __init__(self, config_file=CONFIG_FILE):
+        if os.path.exists(config_file):
+            with open(config_file, "r") as f:
+                self.settings = yaml.safe_load(f)
+        else:
+            self.settings = {}
 
-        # Audio-Grundeinstellungen
-        self.audio_tuning_default = self._data.get("audio_tuning_default", 432.0)
-        self.audio_tuning_options = self._data.get("audio_tuning_options", [432.0, 440.0, 443.0])
+    @property
+    def base_tuning(self):
+        """
+        Return the base tuning frequency (Hz) from config.
+        Default: 432 Hz.
+        """
+        return self.settings.get("base_tuning", 432)
 
-    def _load_config(self):
-        if not self.config_path.exists():
-            raise FileNotFoundError(f"Config file not found: {self.config_path}")
-        with open(self.config_path, "r") as f:
-            return yaml.safe_load(f)
-
-    def get(self, key, default=None):
-        return self._data.get(key, default)
+# Global singleton
+config = Config()
