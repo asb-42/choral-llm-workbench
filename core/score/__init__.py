@@ -1,10 +1,5 @@
-from .parser import load_musicxml
-from .writer import write_musicxml
-from .voice_detection import detect_voices
+# __init__.py für core.score
+from .parser import load_musicxml, write_musicxml
 from .harmony import analyze_chords
-from .reharmonize import (
-    replace_chord_in_measure,
-    replace_chords_in_measures,
-    apply_llm_chords_to_measures,
-    update_single_measure,  
-)
+from .reharmonize import replace_chord_in_measure  # nur die existierende Funktion importieren
+# von hier aus können andere Module spezifische Funktionen importieren

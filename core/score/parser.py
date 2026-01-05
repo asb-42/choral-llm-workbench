@@ -1,11 +1,12 @@
-from music21 import converter, stream
+from music21 import converter
 
-
-def load_musicxml(path: str) -> stream.Score:
-    """
-    Load a MusicXML file and return a music21 Score object.
-    """
+def load_musicxml(path: str):
+    """Lädt eine MusicXML-Datei und gibt ein music21 Stream-Objekt zurück"""
     score = converter.parse(path)
-    if not isinstance(score, stream.Score):
-        raise ValueError("Parsed file is not a Score")
     return score
+
+def write_musicxml(score, path: str):
+    """
+    Speichert ein music21 Stream-Objekt als MusicXML
+    """
+    score.write('musicxml', fp=path)
