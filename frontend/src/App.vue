@@ -1,0 +1,187 @@
+<template>
+  <div class="app">
+    <h1>Choral LLM Workbench – MVP</h1>
+
+    <section class="upload">
+      <h2>MusicXML Upload</h2>
+      <input type="file" @change="onFileSelected" accept=".xml,.musicxml,.mxl" />
+      <div v-if="scoreInfo" class="score-info">
+        <p>Score: {{ scoreInfo.fileName || scoreId }}</p>
+        <p>Parts: {{ scoreInfo.parts ?? scoreInfo.partCount ?? 0 }}</p>
+        <p>Measures: {{ scoreInfo.measures ?? scoreInfo.measureCount ?? 0 }}</p>
+      </div>
+    </section>
+
+    <section class="llm">
+      <h2>LLM Konfiguration</h2>
+      <div class="row">
+        <label>LLM Model</label>
+        <select v-model="selectedModel">
+          <option v-for="m in models" :key="m.name" :value="m.name">{{ m.name }}</option>
+        </select>
+      </div>
+      <div class="prompts-grid">
+        <div class="voice" v-for="v in voices" :key="v">
+          <label>{{ v }} Prompt</label>
+          <textarea v-model="prompts[v]" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="row tuning-row">
+        <label>Base Tuning (Hz)</label>
+        <select v-model.number="tuning">
+          <option v-for="t in tuningOptions" :value="t">{{ t }}</option>
+        </select>
+      </div>
+      <button class="harmonize" @click="harmonize">Harmonize</button>
+    </section>
+
+    <section class="results" v-if="results">
+      <h2>LLM Suggestions</h2>
+      <pre>{{ results }}</pre>
+      <button @click="exportScore">Export MusicXML</button>
+      <button @click="generateAudio" style="margin-left: 8px;">Generate Audio</button>
+    </section>
+
+    <section class="audio" v-if="audios.length">
+      <h2>Audio Preview</h2>
+      <div v-for="(a, idx) in audios" :key="idx" class="audio-row">
+        <div>{{ a.label }}</div>
+        <audio :src="a.src" controls></audio>
+      </div>
+    </section>
+  </div>
+</template>
+
+<script lang="ts">
+import { ref, reactive, onMounted } from 'vue'
+
+export default {
+  name: 'App',
+  setup() {
+    const scoreId = ref<string | null>(null)
+    const scoreInfo = ref<any>(null)
+
+    const models = ref<Array<{ name: string; provider?: string }>>([])
+    const selectedModel = ref<string>('mistral-7b')
+    const tuningOptions = [432, 440, 443]
+    const tuning = ref<number>(432)
+
+    const prompts = reactive<{ [voice: string]: string }>({ S: 'Make Soprano more romantic', A: 'Make Alto more bright', T: 'Make Tenor warmer', B: 'Make Bass solid' })
+    const voices = ['S', 'A', 'T', 'B']
+
+    const results = ref<any>(null)
+    const audios = ref<Array<{ label: string; src: string }>>([])
+
+    onMounted(async () => {
+      try {
+        const r = await fetch('/api/llm/models')
+        if (r.ok) {
+          const j = await r.json()
+          models.value = j.models ?? []
+        } else {
+          models.value = [{ name: 'mistral-7b' }]
+        }
+      } catch {
+        models.value = [{ name: 'mistral-7b' }]
+      }
+    })
+
+    const onFileSelected = async (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target?.files?.[0]
+      if (!file) return
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/score/upload', {
+        method: 'POST',
+        body: fd
+      })
+      if (res.ok) {
+        const data = await res.json()
+        scoreId.value = data.scoreId
+        scoreInfo.value = data
+      }
+    }
+
+    const harmonize = async () => {
+      if (!scoreId.value) return
+      const payload = {
+        scoreId: scoreId.value,
+        prompts: prompts,
+        tuning: tuning.value,
+        model: selectedModel.value
+      }
+      const res = await fetch('/api/harmonize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        const data = await res.json()
+        results.value = data
+        audios.value = []
+      }
+    }
+
+    const exportScore = async () => {
+      if (!scoreId.value) return
+      const res = await fetch('/api/score/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scoreId: scoreId.value, format: 'musicxml' })
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'score_export.musicxml'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+      }
+    }
+
+    const generateAudio = async () => {
+      if (!scoreId.value) return
+      const payload = {
+        scoreId: scoreId.value,
+        voices: ['S','A','T','B'],
+        tuning: tuning.value,
+        duration: 15,
+        instrument: 'piano'
+      }
+      const res = await fetch('/api/score/generate-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.audioUrls?.length) {
+          audios.value = data.audioUrls.map((u: string, i: number) => ({ label: `Voice ${i+1}`, src: u }))
+        } else if (data?.src) {
+          audios.value = [{ label: 'Preview', src: data.src }]
+        }
+      }
+    }
+
+    return { onFileSelected, harmonize, exportScore, generateAudio, models, selectedModel, tuningOptions, tuning, prompts, results, scoreId, scoreInfo, audios, voices }
+  }
+}
+</script>
+
+<style>
+.app { max-width: 1100px; margin: 0 auto; padding: 16px; font-family: Arial, sans-serif; }
+section { border: 1px solid #ddd; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+label { display: block; font-weight: bold; margin-bottom: 6px; }
+input[type="file"] { display: block; }
+textarea { width: 100%; min-height: 60px; }
+select { padding: 6px; }
+button { padding: 8px 12px; margin-top: 8px; }
+.prompts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.voice { padding: 6px; border: 1px solid #eee; border-radius: 6px; background: #fafafa; }
+.score-info { font-size: 0.9em; color: #333; }
+.audio-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+</style>
