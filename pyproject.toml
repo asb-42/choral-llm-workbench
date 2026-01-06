@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "choral-llm-workbench"
+version = "0.1.0"
+description = "A workbench for choral music analysis and generation using LLMs"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Choral LLM Workbench Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "music21>=7.2.1",
+    "gradio>=3.40",
+    "pygame>=2.6.1",
+    "pyfluidsynth>=2.3",
+    "numpy>=1.25",
+    "scipy>=1.12",
+    "python-dotenv>=1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+midi = [
+    "mido>=1.2.0",
+    "python-rtmidi>=1.4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/choral-llm-workbench/choral-llm-workbench"
+Repository = "https://github.com/choral-llm-workbench/choral-llm-workbench.git"
+Issues = "https://github.com/choral-llm-workbench/choral-llm-workbench/issues"
+
+[project.scripts]
+choral-workbench = "cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cli*", "core*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=core --cov=cli --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

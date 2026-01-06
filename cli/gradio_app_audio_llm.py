@@ -6,7 +6,10 @@ from core.score import load_musicxml
 from core.audio import render_audio_with_tuning
 from core.editor.dummy_llm import DummyLLM
 
-# Global session + LLM
+# -------------------------------------------------
+# Global session + dummy LLM
+# -------------------------------------------------
+
 session = Session()
 llm = DummyLLM()
 
@@ -36,13 +39,13 @@ def harmonize_multi_voice(
     a_prompt: str,
     t_prompt: str,
     b_prompt: str,
-    base_tuning: float
+    base_tuning: float,
 ):
     if session.current_score is None:
         return None, None, "No score loaded."
 
     try:
-        # Dummy LLM – no voice kwarg, keep it simple
+        # Dummy LLM: simple prompt echo / placeholder logic
         results = {
             "S": llm.harmonize_prompt(s_prompt),
             "A": llm.harmonize_prompt(a_prompt),
@@ -50,7 +53,7 @@ def harmonize_multi_voice(
             "B": llm.harmonize_prompt(b_prompt),
         }
 
-        # Export MIDI
+        # Write MIDI
         midi_path = "/tmp/choral_llm_output.mid"
         session.current_score.write("midi", fp=midi_path)
 
@@ -75,12 +78,15 @@ def harmonize_multi_voice(
 with gr.Blocks() as demo:
     gr.Markdown("## Choral-LLM Audio Workbench")
 
-    with gr.Box():
+    # ---- Score loading ----
+    with gr.Group():
         gr.Markdown("### 1. Load score")
+
         score_file = gr.File(
             label="MusicXML score",
             file_types=[".musicxml", ".xml"]
         )
+
         load_btn = gr.Button("Load score")
         load_status = gr.Textbox(label="Status", interactive=False)
 
@@ -90,8 +96,10 @@ with gr.Blocks() as demo:
             outputs=load_status
         )
 
-    with gr.Box():
+    # ---- Harmonization ----
+    with gr.Group():
         gr.Markdown("### 2. Harmonization prompts")
+
         s_input = gr.Textbox(label="Soprano prompt")
         a_input = gr.Textbox(label="Alto prompt")
         t_input = gr.Textbox(label="Tenor prompt")

@@ -1,7 +1,0 @@
-# File: core/config.yaml
-
-# Base tuning for audio rendering (Hz)
-base_tuning: 432
-
-# Optional: other settings can be added here
-# soundfont_path: /home/user/.fluidsynth/default_sound_font.sf2
