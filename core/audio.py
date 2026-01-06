@@ -75,7 +75,7 @@ def render_audio_with_tuning(*, midi_path, wav_path, base_tuning=432.0, soundfon
 
 def score_to_midi(score, output_path=None):
     """
-    Convert a Music21 Score to MIDI file.
+    Convert a Music21 Score to MIDI file with proper part offsets.
     
     Args:
         score: Music21 Score object
@@ -91,7 +91,11 @@ def score_to_midi(score, output_path=None):
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mid")
         output_path = tmp_file.name
     
-    # Convert score to MIDI
+    # Ensure all parts have the same offset (critical for proper MIDI timing)
+    for part in score.parts:
+        part.offset = 0.0
+    
+    # Convert score to MIDI with proper timing
     score.write('midi', output_path)
     return Path(output_path)
 

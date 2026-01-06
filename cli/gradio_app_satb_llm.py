@@ -55,7 +55,11 @@ def harmonize_multi_voice(score_file, prompts, base_tuning=None):
             print(f"Audio rendering failed: {audio_error}")
             audio_file = None
 
-        return tmp_file.name, str(audio_file) if audio_file else None, str(suggestions)
+        # Convert to proper file paths for Gradio
+        xml_path = Path(tmp_file.name)
+        audio_path = Path(str(audio_file)) if audio_file else None
+        
+        return str(xml_path), str(audio_path), str(suggestions)
 
     except Exception as e:
         return None, None, f"Error harmonizing: {e}"
