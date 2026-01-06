@@ -182,7 +182,7 @@ class WorkingAudioPreview:
                 if len(measures) > self.score_info['measures']:
                     self.score_info['measures'] = len(measures)
     
-    def generate_audio_for_voice(self, voice_index: int, duration_seconds: int = 15) -> Optional[str]:
+    def generate_audio_for_voice(self, voice_index: int, duration_seconds: int = 15, base_tuning: float = 440.0) -> Optional[str]:
         """Generate audio for a specific voice using pygame MIDI."""
         print(f"🔍 Starting audio generation for voice {voice_index}")
         
@@ -221,34 +221,20 @@ class WorkingAudioPreview:
                     # Try to load and play MIDI with pygame
                     pygame.mixer.music.load(midi_path)
                     print(f"✅ Loaded MIDI with pygame")
-                    
-                    # For now, create a simple sine wave as placeholder
-                    # In a full implementation, we'd need proper MIDI->WAV conversion
-                    sample_rate = 22050
-                    duration = min(duration_seconds, 30)  # Cap at 30 seconds
-                    samples = int(sample_rate * duration)
-                    
-                    # Generate simple sine wave as placeholder
-                    t = np.linspace(0, duration, samples, False)
-                    frequency = 440 + voice_index * 100  # Different frequency per voice
-                    audio_data = np.sin(frequency * t * 2 * np.pi) * 0.3
-                    audio_data = (audio_data * 32767).astype(np.int16)
-                    
-                    # Convert to stereo
-                    stereo_data = np.column_stack((audio_data, audio_data))
-                    
-                    # Save as WAV
-                    wavfile.write(audio_path, sample_rate, stereo_data)
-                    print(f"✅ Generated placeholder audio: {audio_path}")
-                    print(f"⚠️ Note: Using sine wave placeholder (MIDI->WAV needs proper implementation)")
-                    
+                except:
+                    print(f"⚠️ MIDI loading failed, using direct note extraction")
+                
+                # Extract actual notes from MusicXML and create real audio
+                notes = self._extract_notes_from_part(voice_index, base_tuning)
+                if notes:
+                    audio_path = self._create_note_audio(notes, voice_index, base_tuning)
+                else:
+                    # Fallback to sine wave with tuning
+                    audio_path = self._create_fallback_audio(voice_index, base_tuning)
+                
+                if audio_path:
                     print(f"🎵 SUCCESS: Generated audio for voice {voice_index}: {audio_path}")
                     return audio_path
-                    
-                except Exception as e:
-                    print(f"❌ Pygame MIDI conversion failed: {e}")
-                    # Fallback to sine wave
-                    return self._create_placeholder_audio(voice_index, duration_seconds)
             
         except Exception as e:
             print(f"❌ Error generating audio for voice {voice_index}: {e}")
@@ -256,30 +242,124 @@ class WorkingAudioPreview:
             traceback.print_exc()
             return None
     
-    def _create_placeholder_audio(self, voice_index: int, duration_seconds: int = 15) -> Optional[str]:
-        """Create placeholder sine wave audio."""
+    def _extract_notes_from_part(self, part_index: int, base_tuning: float = 440.0) -> List[Dict]:
+        """Extract actual notes from MusicXML part."""
+        notes = []
+        if part_index < len(self.current_score.parts):
+            part = self.current_score.parts[part_index]
+            
+            for measure in part.getElementsByClass('Measure'):
+                for element in measure.notesAndRests:
+                    if element.isNote:
+                        note_name = element.name
+                        octave = element.octave
+                        duration = element.duration.quarterLength
+                        
+                        # Convert note to frequency
+                        frequency = self._note_to_frequency(note_name, octave, base_tuning)
+                        
+                        notes.append({
+                            'name': note_name,
+                            'octave': octave,
+                            'frequency': frequency,
+                            'duration': duration,
+                            'measure': measure.number
+                        })
+        
+        return notes
+    
+    def _note_to_frequency(self, note_name: str, octave: int, base_tuning: float = 440.0) -> float:
+        """Convert note name and octave to frequency."""
+        # A4 = base_tuning (default 440 Hz)
+        note_frequencies = {
+            'C': -9, 'C#': -8, 'D': -7, 'D#': -6, 'E': -5,
+            'F': -4, 'F#': -3, 'G': -2, 'G#': -1, 'A': 0,
+            'A#': 1, 'B': 2
+        }
+        
+        semitone_offset = note_frequencies.get(note_name, 0)
+        a4_octave = 4
+        octave_diff = octave - a4_octave
+        
+        # Frequency formula: f = base_tuning * 2^((semitone_offset + octave_diff * 12) / 12)
+        frequency = base_tuning * (2 ** ((semitone_offset + octave_diff * 12) / 12))
+        return frequency
+    
+    def _create_note_audio(self, notes: List[Dict], voice_index: int, base_tuning: float = 440.0) -> Optional[str]:
+        """Create audio from actual MusicXML notes."""
+        if not notes:
+            print(f"⚠️ No notes found for voice {voice_index}")
+            return self._create_fallback_audio(voice_index, base_tuning)
+        
         try:
             sample_rate = 22050
-            duration = min(duration_seconds, 30)
+            total_duration = sum(note['duration'] for note in notes)
+            total_duration = min(total_duration, 30)  # Cap at 30 seconds
+            samples = int(sample_rate * total_duration)
+            
+            t = np.linspace(0, total_duration, samples, False)
+            audio_data = np.zeros(samples)
+            
+            current_time = 0
+            for note in notes:
+                note_duration = min(note['duration'], 30 - current_time)
+                if note_duration <= 0:
+                    break
+                
+                note_samples = int(sample_rate * note_duration)
+                start_sample = int(current_time * sample_rate)
+                end_sample = min(start_sample + note_samples, samples)
+                
+                if start_sample < samples:
+                    note_time = t[start_sample:end_sample] - current_time
+                    # Add envelope for smoother sound
+                    envelope = np.exp(-note_time * 2)  # Exponential decay
+                    note_wave = np.sin(2 * np.pi * note['frequency'] * note_time) * envelope * 0.3
+                    audio_data[start_sample:end_sample] += note_wave
+                
+                current_time += note_duration
+            
+            # Normalize and convert
+            if np.max(np.abs(audio_data)) > 0:
+                audio_data = audio_data / np.max(np.abs(audio_data))
+            audio_data = (audio_data * 32767).astype(np.int16)
+            stereo_data = np.column_stack((audio_data, audio_data))
+            
+            audio_path = os.path.join(self.temp_dir, f"voice_notes_{voice_index}_t{base_tuning:.0f}.wav")
+            wavfile.write(audio_path, sample_rate, stereo_data)
+            
+            print(f"✅ Created note-based audio for voice {voice_index}: {audio_path}")
+            print(f"   Notes: {len(notes)}, Duration: {total_duration:.1f}s, Tuning: {base_tuning}Hz")
+            return audio_path
+            
+        except Exception as e:
+            print(f"❌ Error creating note audio for voice {voice_index}: {e}")
+            return self._create_fallback_audio(voice_index, base_tuning)
+    
+    def _create_fallback_audio(self, voice_index: int, base_tuning: float = 440.0) -> Optional[str]:
+        """Create fallback sine wave with base tuning."""
+        try:
+            sample_rate = 22050
+            duration = 15
             samples = int(sample_rate * duration)
             
-            # Generate different frequency per voice
             t = np.linspace(0, duration, samples, False)
-            frequencies = [523, 440, 349, 262]  # C5, A4, F4, C4
-            frequency = frequencies[voice_index % 4]
+            # Base frequencies adjusted for tuning
+            base_frequencies = [523, 440, 349, 262]  # C5, A4, F4, C4 at 440Hz
+            frequency = base_frequencies[voice_index % 4] * (base_tuning / 440.0)
             
             audio_data = np.sin(frequency * t * 2 * np.pi) * 0.3
             audio_data = (audio_data * 32767).astype(np.int16)
             stereo_data = np.column_stack((audio_data, audio_data))
             
-            audio_path = os.path.join(self.temp_dir, f"voice_placeholder_{voice_index}.wav")
+            audio_path = os.path.join(self.temp_dir, f"voice_fallback_{voice_index}_t{base_tuning:.0f}.wav")
             wavfile.write(audio_path, sample_rate, stereo_data)
             
-            print(f"✅ Created placeholder audio for voice {voice_index}: {audio_path}")
+            print(f"✅ Created fallback audio for voice {voice_index}: {audio_path}")
             return audio_path
             
         except Exception as e:
-            print(f"❌ Error creating placeholder audio: {e}")
+            print(f"❌ Error creating fallback audio: {e}")
             return None
         
         if voice_index >= len(self.score_info['part_names']):
@@ -487,6 +567,15 @@ def create_working_audio_interface():
                     label="⏱️ Duration (seconds)"
                 )
                 
+                # Base tuning control
+                tuning_slider = gr.Slider(
+                    minimum=432,
+                    maximum=444,
+                    value=440,
+                    step=1,
+                    label="🎵 Base Tuning (Hz)"
+                )
+                
                 # Voice selection controls
                 with gr.Row():
                     with gr.Column():
@@ -544,8 +633,8 @@ def create_working_audio_interface():
             except Exception as e:
                 return f"❌ Error: {str(e)}"
         
-        def generate_individual_audio(file_obj, duration, soprano, alto, tenor, bass):
-            """Generate audio for selected voices."""
+        def generate_individual_audio(file_obj, duration, base_tuning, soprano, alto, tenor, bass):
+            """Generate audio for selected voices with configurable tuning."""
             if file_obj is None:
                 return tuple([None] * 4 + [gr.update(visible=False)] * 4)
             
@@ -555,16 +644,26 @@ def create_working_audio_interface():
                 visibility = [False] * 4
                 
                 print(f"Generating audio for voices: {voices_enabled}")
+                print(f"Base tuning: {base_tuning} Hz")
                 
                 for i, enabled in enumerate(voices_enabled):
                     if enabled and i < len(previewer.score_info['part_names']):
-                        audio_path = previewer.generate_audio_for_voice(i, duration)
+                        audio_path = previewer.generate_audio_for_voice(i, duration, base_tuning)
                         if audio_path:
                             audio_files[i] = audio_path
                             visibility[i] = True
+                            print(f"✅ Voice {i} ({previewer.score_info['part_names'][i]}): {audio_path}")
+                        else:
+                            print(f"❌ Voice {i} failed to generate")
+                    else:
+                        print(f"⏭️ Voice {i} disabled or out of range")
+                
+                print(f"Final audio files: {audio_files}")
+                print(f"Visibility flags: {visibility}")
                 
                 return tuple(audio_files) + tuple(
-                    gr.update(visible=v) for v in visibility
+                    gr.update(visible=v, value=audio_files[i] if v else None) 
+                    for i, v in enumerate(visibility)
                 )
                 
             except Exception as e:
@@ -596,7 +695,7 @@ def create_working_audio_interface():
         
         generate_individual_btn.click(
             fn=generate_individual_audio,
-            inputs=[score_input, duration_slider, soprano_check, alto_check, tenor_check, bass_check],
+            inputs=[score_input, duration_slider, tuning_slider, soprano_check, alto_check, tenor_check, bass_check],
             outputs=[soprano_audio, alto_audio, tenor_audio, bass_audio, 
                     soprano_audio, alto_audio, tenor_audio, bass_audio]
         )

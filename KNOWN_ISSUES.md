@@ -225,6 +225,109 @@ def generate_voice_audio(voice_index, duration):
 - **pyfluidsynth**: COMPLETELY BROKEN (see above)
 - **pygame.mixer**: WORKING (current workaround)
 - **MIDI Conversion**: Partially working (files created, conversion blocked)
+- **Note Extraction**: PARTIALLY WORKING (basic extraction from MusicXML)
+- **WAV File Display**: WORKING with Gradio fixes applied
+
+---
+
+## 🚫 Gradio Architectural Limitations
+
+### Critical Framework Constraints Blocking Professional Audio
+
+**Status:** FUNDAMENTAL ARCHITECTURE LIMITS  
+**Priority:** CRITICAL for professional audio applications  
+**Impact:** Limits audio capabilities to basic playback
+
+#### Audio File Handling Limitations
+
+**Gradio Audio Component Issues:**
+```python
+# Gradio requires proper file path and visibility updates
+gr.Audio(label="Voice", visible=False, value=None)  # Must be correctly configured
+# Without proper value/visibility sync, files won't display
+```
+
+**Problems Experienced:**
+- **WAV files not displaying** without explicit `value=` parameter
+- **Static component model** prevents dynamic audio updates
+- **No real-time audio processing** or streaming capabilities
+- **Limited to file-based audio** (no in-memory audio synthesis)
+
+#### MusicXML Processing Constraints
+
+**Score Parsing Limitations:**
+- **Basic note extraction** only (timing, pitch, duration)
+- **No expression data** (dynamics, articulation, phrasing)
+- **Limited voice separation** (works for simple scores, fails on complex scores)
+- **No tempo/expression support** in audio synthesis
+
+**Bass Voice Missing Issue:**
+```python
+# Common problem with music21 part indexing
+parts = score.parts  # May not include all voices
+bass_missing = len(parts) < 4  # SATB scores sometimes only show S, A, T
+```
+
+#### Audio Synthesis Limitations
+
+**Current Workaround Limitations:**
+- **Sine wave synthesis** instead of real instruments
+- **No envelope shaping** (attack, decay, sustain, release)
+- **No polyphony** (single note at a time per voice)
+- **No effects** (reverb, chorus, etc.)
+- **Limited frequency range** and sound quality
+
+**Missing Professional Features:**
+```python
+# Current limitations:
+- No ADSR envelopes: note音 = sine(frequency) * 0.3
+- No voice layering or harmony
+- No expression (crescendo, diminuendo)
+- No articulation (staccato, legato)
+- No tempo variation
+```
+
+#### Real-Time Processing Limits
+
+**Gradio Request-Response Model:**
+- **No streaming audio** (must generate complete file first)
+- **No real-time parameter changes** (tuning, tempo, effects)
+- **No interactive score navigation**
+- **No live audio manipulation**
+
+---
+
+## 🎯 Required Architecture Changes
+
+### For Professional Audio Application
+
+**Option 1: Web Audio API Framework**
+```
+✅ Real-time audio synthesis and processing
+✅ Interactive score visualization  
+✅ Live parameter adjustment (tuning, tempo)
+✅ Professional audio effects and processing
+✅ Streaming audio and real-time updates
+✅ Modern JavaScript ecosystem
+```
+
+**Option 2: Desktop Audio Application**
+```
+✅ Professional audio frameworks (JUCE, VST)
+✅ Real-time MIDI processing
+✅ High-quality audio synthesis
+✅ Plugin support and extensibility
+✅ Professional soundfont management
+```
+
+**Option 3: Enhanced Gradio with Extensions**
+```
+⚠️ Limited improvement possible
+✅ Better audio file handling
+✅ Improved note extraction
+✅ Enhanced pygame synthesis
+❌ Still limited by Gradio architecture
+```
 
 ### Migration Requirements
 - **Phase 1**: Fix pyfluidsynth or implement alternative
