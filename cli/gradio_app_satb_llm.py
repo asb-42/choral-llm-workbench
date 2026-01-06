@@ -1,14 +1,15 @@
 """
-Gradio App: SATB harmonization using a dummy LLM for testing.
+Gradio App: SATB harmonization using a modern LLM adapter (Ollama backend).
 
 This app allows users to enter text prompts for each voice (S,A,T,B)
-and generates chord suggestions using a Dummy LLM. MIDI/WAV preview is included.
+and generates chord suggestions using an Ollama-backed LLM adapter. MIDI/WAV preview is included.
 """
 
 import gradio as gr
-from copy import deepcopy
 from core.score import load_musicxml, write_musicxml, replace_chord_in_measure
 from core.llm.adapter import LLMAdapter
+from core.llm.llm_wrapper import OllamaLLM
+from core.score.llm import apply_llm_chords_to_measures
 from core.audio import score_to_midi, render_audio_with_tuning, render_score_audio
 from core.config import get_config
 from core.i18n import _
@@ -17,8 +18,9 @@ import tempfile
 import os
 from pathlib import Path
 
-# Initialize dummy LLM
-llm = LLMAdapter(model_name='mistral-7b')
+# Initialize LLM via config (default Ollama via adapter)
+config = get_config()
+llm = LLMAdapter(model_name=getattr(config.llm, 'model_name', 'mistral-7b'))
 
 # Helper function for multi-voice harmonization
 def harmonize_multi_voice(score_file, prompts, base_tuning=None):
@@ -39,10 +41,7 @@ def harmonize_multi_voice(score_file, prompts, base_tuning=None):
 
     try:
         suggestions = llm.harmonize_multi_voice(prompts)
-        
-        # Apply each chord suggestion to score
-        for voice, suggestion in suggestions.items():
-            replace_chord_in_measure(score, suggestion['measure'], suggestion['root'])
+        score = apply_llm_chords_to_measures(score, suggestions)
 
         # Save updated MusicXML
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
@@ -71,13 +70,13 @@ def update_tuning_display(tuning_value):
 
 # Gradio Interface
 with gr.Blocks() as app:
-    gr.Markdown("## SATB Harmonization (Dummy LLM)")
+    gr.Markdown("## SATB Harmonization (LLM Adapter)")
     
-    # File input section
+    # File input
     with gr.Row():
         score_input = gr.File(label="Upload MusicXML")
     
-    # Audio tuning controls
+    # Tuning controls
     with gr.Row():
         with gr.Column():
             tuning_slider = gr.Slider(
@@ -87,50 +86,41 @@ with gr.Blocks() as app:
                 step=1.0,
                 label="Base Tuning (Hz)"
             )
-            tuning_display = gr.Textbox(
-                label="Current Tuning",
-                value=f"{AudioDefaults.BASE_TUNING} Hz",
-                interactive=False
-            )
+            tuning_display = gr.Textbox(label="Current Tuning", value=f"{AudioDefaults.BASE_TUNING} Hz", interactive=False)
     
-    # Voice prompts section
+    # Prompts
     with gr.Row():
         s_prompt = gr.Textbox(label="Soprano Prompt", value="Make Soprano more romantic")
         a_prompt = gr.Textbox(label="Alto Prompt", value="Make Alto more bright")
         t_prompt = gr.Textbox(label="Tenor Prompt", value="Make Tenor warmer")
         b_prompt = gr.Textbox(label="Bass Prompt", value="Make Bass solid")
     
-    # Action buttons
     with gr.Row():
         harmonize_btn = gr.Button("Harmonize", variant="primary")
     
-    # Output section
     with gr.Row():
         output_file = gr.File(label="Output MusicXML")
         output_audio = gr.Audio(label="Audio Preview")
         output_text = gr.Textbox(label="LLM Suggestions", lines=5)
 
-        # Store prompts in gr.State separately to avoid deepcopy issues
     prompts_state = gr.State({})
-    
+
     def update_prompts(s_prompt, a_prompt, t_prompt, b_prompt):
         return {"S": s_prompt, "A": a_prompt, "T": t_prompt, "B": b_prompt}
-    
-    # Update tuning display when slider changes
+
     tuning_slider.change(
         fn=update_tuning_display,
         inputs=[tuning_slider],
         outputs=[tuning_display]
     )
-    
-    # Update prompts state when any prompt changes
+
     for prompt_input in [s_prompt, a_prompt, t_prompt, b_prompt]:
         prompt_input.change(
             fn=update_prompts,
             inputs=[s_prompt, a_prompt, t_prompt, b_prompt],
             outputs=[prompts_state]
         )
-    
+
     harmonize_btn.click(
         fn=harmonize_multi_voice,
         inputs=[score_input, prompts_state, tuning_slider],
