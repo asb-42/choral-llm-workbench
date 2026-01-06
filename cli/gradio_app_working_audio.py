@@ -671,49 +671,50 @@ def create_working_audio_interface():
         
         def generate_individual_audio(file_obj, duration, base_tuning, soprano, alto, tenor, bass):
             """Generate audio for selected voices with configurable tuning."""
-            if file_obj is None:
-                return tuple([None] * 4 + [gr.update(visible=False)] * 4 + ["Ready to generate audio..."])
-            
-            status_messages = []
-            voices_enabled = [soprano, alto, tenor, bass]
-            audio_files = [None] * 4
-            visibility = [False] * 4
-            
-            status_messages.append(f"🎵 Starting audio generation...")
-            status_messages.append(f"🎼 Base tuning: {base_tuning} Hz")
-            status_messages.append(f"🎤 Enabled voices: {[i for i, enabled in enumerate(voices_enabled) if enabled]}")
-            
-            print(f"Generating audio for voices: {voices_enabled}")
-            print(f"Base tuning: {base_tuning} Hz")
-            
-            for i, enabled in enumerate(voices_enabled):
-                if enabled and i < len(previewer.score_info['part_names']):
-                    status_messages.append(f"🔍 Processing Voice {i}: {previewer.score_info['part_names'][i]}...")
-                    
-                    audio_path = previewer.generate_audio_for_voice(i, duration, base_tuning)
-                    if audio_path:
-                        audio_files[i] = audio_path
-                        visibility[i] = True
-                        status_messages.append(f"✅ Voice {i} SUCCESS: {os.path.basename(audio_path)}")
-                        print(f"✅ Voice {i} ({previewer.score_info['part_names'][i]}): {audio_path}")
-                    else:
-                        status_messages.append(f"❌ Voice {i} FAILED")
-                        print(f"❌ Voice {i} failed to generate")
-                else:
-                    reason = "disabled" if not enabled else "out of range"
-                    status_messages.append(f"⏭️ Voice {i} skipped ({reason})")
-                    print(f"⏭️ Voice {i} {reason}")
-            
-            status_messages.append(f"🎯 Generation complete: {sum(visibility)} of {len(voices_enabled)} voices generated")
-            print(f"Final audio files: {audio_files}")
-            print(f"Visibility flags: {visibility}")
-            
-            return tuple(audio_files) + tuple(
-                gr.update(visible=v, value=audio_files[i] if v else None) 
-                for i, v in enumerate(visibility)
-            ) + ("\n".join(status_messages),)
+            try:
+                if file_obj is None:
+                    return tuple([None] * 4 + [gr.update(visible=False)] * 4 + ["Ready to generate audio..."])
                 
-        except Exception as e:
+                status_messages = []
+                voices_enabled = [soprano, alto, tenor, bass]
+                audio_files = [None] * 4
+                visibility = [False] * 4
+                
+                status_messages.append(f"🎵 Starting audio generation...")
+                status_messages.append(f"🎼 Base tuning: {base_tuning} Hz")
+                status_messages.append(f"🎤 Enabled voices: {[i for i, enabled in enumerate(voices_enabled) if enabled]}")
+                
+                print(f"Generating audio for voices: {voices_enabled}")
+                print(f"Base tuning: {base_tuning} Hz")
+                
+                for i, enabled in enumerate(voices_enabled):
+                    if enabled and i < len(previewer.score_info['part_names']):
+                        status_messages.append(f"🔍 Processing Voice {i}: {previewer.score_info['part_names'][i]}...")
+                        
+                        audio_path = previewer.generate_audio_for_voice(i, duration, base_tuning)
+                        if audio_path:
+                            audio_files[i] = audio_path
+                            visibility[i] = True
+                            status_messages.append(f"✅ Voice {i} SUCCESS: {os.path.basename(audio_path)}")
+                            print(f"✅ Voice {i} ({previewer.score_info['part_names'][i]}): {audio_path}")
+                        else:
+                            status_messages.append(f"❌ Voice {i} FAILED")
+                            print(f"❌ Voice {i} failed to generate")
+                    else:
+                        reason = "disabled" if not enabled else "out of range"
+                        status_messages.append(f"⏭️ Voice {i} skipped ({reason})")
+                        print(f"⏭️ Voice {i} {reason}")
+                
+                status_messages.append(f"🎯 Generation complete: {sum(visibility)} of {len(voices_enabled)} voices generated")
+                print(f"Final audio files: {audio_files}")
+                print(f"Visibility flags: {visibility}")
+                
+                return tuple(audio_files) + tuple(
+                    gr.update(visible=v, value=audio_files[i] if v else None) 
+                    for i, v in enumerate(visibility)
+                ) + ("\n".join(status_messages),)
+                    
+            except Exception as e:
                 error_msg = f"❌ ERROR: {str(e)}"
                 print(f"Error in generate_individual_audio: {e}")
                 return tuple([None] * 8 + [error_msg])  # 4 audio files + 4 visibility updates + status
