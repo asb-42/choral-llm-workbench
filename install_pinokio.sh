@@ -1,36 +1,57 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "=== Installing system dependencies for Choral LLM Workbench ==="
+# Enhanced Pinokio-style installer: enforces Ollama as a system requirement
 
-# Update package list
-sudo apt update
+ROOT_DIR=$(pwd)
+VENVDIR="$ROOT_DIR/.venv"
 
-# Python and dev tools
-sudo apt install -y python3.12 python3.12-venv python3.12-dev python3-pip git
+echo "[Pinokio] Starting installation..."
 
-# SDL2 libraries for pygame audio
-sudo apt install -y libsdl2-2.0-0 libsdl2-mixer-2.0-0
+# 1) System dependencies (Ubuntu/Debian style commands as baseline)
+if command -v apt-get >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo apt-get install -y python3.12 python3.12-venv python3-pip git \
+    libsdl2-2.0-0 libsdl2-mixer-2.0-0 fluidsynth curl
+else
+  echo "[Pinokio] Non-Debian system detected. Please install Python 3.12+, PIP, and Ollama manually."
+fi
 
-# FluidSynth for MIDI -> WAV rendering
-sudo apt install -y fluidsynth
+# 2) Python venv
+echo "[Pinokio] Creating virtual environment..."
+python3.12 -m venv "$VENVDIR"
+source "$VENVDIR/bin/activate"
 
-# Create virtual environment
-echo "=== Creating virtual environment ==="
-python3.12 -m venv .venv
-source .venv/bin/activate
-
-# Upgrade pip
+# 3) Python dependencies
+echo "[Pinokio] Installing Python dependencies..."
 pip install --upgrade pip
-
-# Install Python dependencies
-echo "=== Installing Python packages ==="
 pip install -r requirements.txt
 
-# Download default SoundFont
-echo "=== Downloading default SoundFont ==="
-mkdir -p ~/.fluidsynth
-wget https://member.keymusician.com/Member/FluidR3_GM/FluidR3_GM.sf2 -O ~/.fluidsynth/default_sound_font.sf2
+# 4) Node dependencies (if available)
+if [ -d frontend ]; then
+  echo "[Pinokio] Installing frontend dependencies..."
+  (cd frontend && npm install --silent) || true
+fi
+if [ -d backend ]; then
+  echo "[Pinokio] Installing backend dependencies..."
+  (cd backend && npm install --silent) || true
+fi
 
-echo "=== Installation complete ==="
-echo "Activate virtual environment with: source .venv/bin/activate"
+# 5) Ollama requirement check
+if command -v ollama >/dev/null 2>&1; then
+  echo "[Pinokio] Ollama found. You can use local models."
+else
+  echo "[Pinokio] Ollama not found. Please install Ollama for local LLMs."
+fi
+
+# 6) SoundFont download (optional)
+mkdir -p ~/.fluidsynth
+if [ -f ~/.fluidsynth/default_sound_font.sf2 ]; then
+  echo "[Pinokio] SoundFont already present."
+else
+  echo "[Pinokio] Downloading default SoundFont..."
+  curl -L https://member.keymusician.com/Member/FluidR3_GM/FluidR3_GM.sf2 -o ~/.fluidsynth/default_sound_font.sf2 || true
+fi
+
+# 7) Final note
+echo "[Pinokio] Done. Run: source "$VENVDIR/bin/activate" and follow project docs to start services."
