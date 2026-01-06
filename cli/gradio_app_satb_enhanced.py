@@ -172,12 +172,25 @@ def create_satb_interface():
         gr.Markdown("## 🎵 SATB Harmonization with Advanced Audio Preview")
         
         # File input and preview section
-        with gr.Row():
-            with gr.Column(scale=2):
-                score_input = gr.File(label="📁 Upload MusicXML", file_types=[".xml", ".musicxml", ".mxl"])
-            
+with gr.Row():
             with gr.Column(scale=3):
-                preview_col, preview_image, analysis_text = create_preview_component()
+                gr.Markdown("### 📄 MusicXML Preview")
+                
+                with gr.Row():
+                    preview_image = gr.Image(
+                        label="Score Visualization",
+                        type="filepath",  # Use filepath to avoid base64 issues
+                        height=200,
+                        interactive=False
+                    )
+                
+                with gr.Row():
+                    analysis_text = gr.Textbox(
+                        label="Score Analysis",
+                        lines=8,
+                        max_lines=10,
+                        interactive=False
+                    )
         
         # Audio tuning controls
         with gr.Row():

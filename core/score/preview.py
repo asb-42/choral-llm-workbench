@@ -20,6 +20,8 @@ patches = None
 try:
     from music21 import converter, stream
     from music21.musicxml.xmlToM21 import MusicXMLImporter
+    import matplotlib
+    matplotlib.use('Agg')  # Use non-interactive backend
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
     from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -34,7 +36,7 @@ except ImportError:
 
 def create_score_preview(score_obj):
     """
-    Create a visual preview of a Music21 Score.
+    Create a simple visual preview of a Music21 Score without complex fonts.
     
     Args:
         score_obj: music21.stream.Score object
@@ -43,43 +45,53 @@ def create_score_preview(score_obj):
         str: Base64 encoded PNG image or error message
     """
     if not MUSIC21_AVAILABLE or plt is None or patches is None:
-        return "❌ Music21/Matplotlib not available for preview"
+        return None  # Return None for Gradio to handle gracefully
     
     try:
-        # Create a simple visualization of the score
-        fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+        # Create a simple visualization - use ASCII-friendly approach
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        
+        # Set font and avoid complex characters
+        plt.rcParams['font.family'] = 'sans-serif'
+        plt.rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans']
+        
         ax.set_xlim(0, 100)
-        ax.set_ylim(0, 50)
+        ax.set_ylim(0, 40)
         ax.set_aspect('equal')
         ax.axis('off')
         
-        # Simple score representation
-        y_offset = 40
+        # Simple score representation without complex text
+        y_offset = 35
         for i, part in enumerate(score_obj.parts[:4]):  # Limit to first 4 parts
-            part_name = getattr(part, 'partName', f'Part {i+1}')
+            part_num = i + 1
             
             # Draw staff line
             ax.plot([10, 90], [y_offset, y_offset], 'k-', linewidth=1)
             
-            # Draw part name
-            ax.text(2, y_offset + 2, part_name[:10], fontsize=8, ha='left')
+            # Draw part number (simple, no complex characters)
+            ax.text(2, y_offset + 2, f'Part {part_num}', fontsize=8, ha='left')
             
-            # Draw notes (simplified representation)
+            # Draw notes (simple dots)
+            note_count = 0
             for measure in part.getElementsByClass('Measure')[:8]:  # Show first 8 measures
+                if note_count >= 16:  # Limit total notes
+                    break
                 measure_x = 10 + measure.number * 10
                 for note in measure.getElementsByClass(['Note', 'Chord']):
-                    note_y = y_offset + note.pitch.midi % 12 * 0.5 - 3
-                    ax.add_patch(patches.Circle((measure_x, note_y), 0.3, 
-                                           color='blue', zorder=10))
+                    if note_count >= 16:
+                        break
+                    note_y = y_offset + (note.pitch.midi % 12) * 0.3 - 1
+                    ax.plot(measure_x, note_y, 'ro', markersize=3, zorder=10)
+                    note_count += 1
             
-            y_offset -= 8
+            y_offset -= 7
         
-        plt.title(f"Score Preview: {len(score_obj.parts)} parts")
-        plt.tight_layout()
+        # Simple title without special characters
+        plt.title(f"Score Preview - {len(score_obj.parts)} parts")
         
         # Convert to base64
         buffer = BytesIO()
-        plt.savefig(buffer, format='png', dpi=100, bbox_inches='tight')
+        plt.savefig(buffer, format='png', dpi=80, bbox_inches='tight')
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.read()).decode()
         plt.close()
@@ -87,7 +99,7 @@ def create_score_preview(score_obj):
         return f"data:image/png;base64,{image_base64}"
         
     except Exception as e:
-        return f"❌ Preview error: {str(e)}"
+        return None  # Return None on error
 
 
 def create_score_analysis(score_obj):
