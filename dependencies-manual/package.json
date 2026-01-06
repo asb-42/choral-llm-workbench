@@ -1,0 +1,47 @@
+{
+  "name": "dependencies-manual",
+  "description": "Manual dependency installation guide for choral-llm-workbench",
+  "main": "install-manual.js",
+  "scripts": {
+    "install": "node install-manual.js install",
+    "check": "node install-manual.js check",
+    "backend": "node install-manual.js backend",
+    "frontend": "node install-manual.js frontend",
+    "all": "node install-manual.js all",
+    "check": "node install-manual.js check",
+    "pyenv": "node install-manual.js pyenv",
+    "test-pyenv": "node install-manual.js pyenv",
+    "install-ollama": "node install-manual.js ollama",
+    "start": "node install-manual.js start",
+    "status": "node install-manual.js status"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "fs": "^0.16.3",
+    "path": "^0.17.7",
+    "axios": "^1.6.0",
+    "which": "^3.0.0",
+    "ora": "^7.0.1",
+    "inquirer": "^9.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "keywords": [
+    "manual",
+    "dependencies",
+    "installation",
+    "workbench",
+    "npm",
+    "npm-registry-workaround"
+    "python",
+    "pyenv"
+    "musicxml"
+    "audio"
+    "choral"
+    "llm"
+    "ollama"
+  ],
+  "author": "Choral LLM Workbench Team",
+  "license": "MIT"
+}
