@@ -172,25 +172,9 @@ def create_satb_interface():
         gr.Markdown("## 🎵 SATB Harmonization with Advanced Audio Preview")
         
         # File input and preview section
-with gr.Row():
-            with gr.Column(scale=3):
-                gr.Markdown("### 📄 MusicXML Preview")
-                
-                with gr.Row():
-                    preview_image = gr.Image(
-                        label="Score Visualization",
-                        type="filepath",  # Use filepath to avoid base64 issues
-                        height=200,
-                        interactive=False
-                    )
-                
-                with gr.Row():
-                    analysis_text = gr.Textbox(
-                        label="Score Analysis",
-                        lines=8,
-                        max_lines=10,
-                        interactive=False
-                    )
+        with gr.Row():
+            with gr.Column(scale=2):
+                score_input = gr.File(label="📁 Upload MusicXML", file_types=[".xml", ".musicxml", ".mxl"])
         
         # Audio tuning controls
         with gr.Row():
@@ -257,7 +241,7 @@ with gr.Row():
         
         with gr.Row():
             output_summary = gr.Textbox(
-                label="📋 Harmonization Summary",
+                label="📝 Harmonization Summary",
                 lines=8,
                 max_lines=12,
                 interactive=False
@@ -273,10 +257,6 @@ with gr.Row():
         def update_tuning_display(tuning_value):
             return f"{tuning_value} Hz"
         
-        def update_preview(file_obj):
-            from core.score.preview import preview_musicxml
-            return preview_musicxml(file_obj)
-        
         # Wire up events
         for prompt_input in [s_prompt, a_prompt, t_prompt, b_prompt]:
             prompt_input.change(
@@ -289,12 +269,6 @@ with gr.Row():
             fn=update_tuning_display,
             inputs=[tuning_slider],
             outputs=[tuning_display]
-        )
-        
-        score_input.change(
-            fn=update_preview,
-            inputs=[score_input],
-            outputs=[preview_image, analysis_text]
         )
         
         harmonize_btn.click(
