@@ -4,21 +4,23 @@ music21>=7.2.1
 # Web UI
 gradio>=3.40
 
-# Audio playback
-pygame>=2.6
+# Audio playback and synthesis
+pygame>=2.6.1
 pyfluidsynth>=2.3
+fluidsynth>=0.3
 
-# Numerical processing (if needed for audio)
+# Numerical processing for audio
 numpy>=1.25
 scipy>=1.12
+
+# Visualization
+matplotlib>=3.5.0
 
 # Environment variables / config
 python-dotenv>=1.1
 
-# Audio playback & MIDI support
-pygame>=2.6.1
-
 # Optional: for development & testing
 pytest>=7.0.0
 
+# MIDI support (optional)
 # mido python-rtmidi

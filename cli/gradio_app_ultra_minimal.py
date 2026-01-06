@@ -46,6 +46,40 @@ class UltraMinimalViewer:
             'size': self.current_file_path.stat().st_size if self.current_file_path.exists() else 0,
             'modified': self.current_file_path.stat().st_mtime if self.current_file_path.exists() else 0
         }
+    
+    def get_basic_score_text(self) -> str:
+        """Get basic score information as text."""
+        if not self.current_file_path:
+            return "No score loaded"
+        
+        if not MUSIC21_AVAILABLE:
+            return "Music21 not available - cannot parse score"
+        
+        try:
+            score = converter.parse(str(self.current_file_path))
+            
+            # Basic score info
+            info = f"📼 Score: {self.current_file_path.name}\n"
+            
+            # Part information
+            if hasattr(score, 'parts') and len(score.parts) > 0:
+                info += f"🎵 Parts: {len(score.parts)}\n"
+                for i, part in enumerate(score.parts[:4]):  # Limit to first 4 parts
+                    part_name = getattr(part, 'partName', f'Voice {i+1}')
+                    info += f"  - {part_name}\n"
+            else:
+                info += "🎵 Parts: None found\n"
+            
+            # Measure information
+            if hasattr(score, 'parts') and len(score.parts) > 0:
+                first_part = score.parts[0]
+                measures = first_part.getElementsByClass('Measure')
+                info += f"📏 Measures: {len(measures)}\n"
+            
+            return info
+            
+        except Exception as e:
+            return f"Error parsing score: {str(e)}"
 
 
 def create_ultra_minimal_interface():
@@ -124,8 +158,8 @@ if __name__ == "__main__":
     
     try:
         minimal_app.launch(
-            server_name="0.0.0.0",
-            server_port=7862,
+            server_name="127.0.0.1",
+            server_port=7860,
             share=False,
             debug=False
         )

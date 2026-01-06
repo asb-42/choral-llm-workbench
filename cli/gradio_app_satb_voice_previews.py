@@ -1,450 +1,265 @@
 """
-Enhanced SATB harmonization with detailed voice preview.
-
-This application provides:
-- Individual voice previews for each SATB voice
-- Real-time audio preview per voice
-- Comprehensive harmonization workflow
-- Professional score visualization
-- Downloadable voice-specific audio files
+Working score viewer with basic functionality.
 """
 
 import gradio as gr
-from pathlib import Path
 import tempfile
-import subprocess
-from typing import Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Optional, Dict, Any
 
-# Core imports
-from core.score import load_musicxml, write_musicxml
-from core.score.reharmonize import replace_chord_in_measure, make_chord
-from core.audio import score_to_midi, render_audio_with_tuning
-from core.editor.dummy_llm import DummyLLM
-from core.config import get_config
-from core.i18n import _
-from core.constants import AudioDefaults, VoiceInfo
-from core.score.preview import create_simple_viewer
+try:
+    from music21 import converter, stream, note, chord, meter
+    MUSIC21_AVAILABLE = True
+except ImportError:
+    MUSIC21_AVAILABLE = False
+    converter = None
 
 
-class VoiceAudioPreview:
-    """Manage individual voice audio generation and preview."""
+def create_basic_viewer() -> tuple:
+    """Create a basic but functional score viewer."""
     
-    def __init__(self):
-        self.llm = DummyLLM()
-        self.config = get_config()
+    viewer = BasicScoreViewer()
     
-    def generate_voice_audio(self, score, voice: str, base_tuning: float, 
-                           duration_limit: int = 30) -> Optional[Path]:
-        """
-        Generate audio for a specific voice part.
+    with gr.Column() as viewer_col:
+        gr.Markdown("### 🎼 Basic Score Viewer")
         
-        Args:
-            score: Music21 Score object
-            voice: Voice identifier ('S', 'A', 'T', 'B')
-            base_tuning: Base tuning frequency
-            duration_limit: Maximum duration in seconds
-            
-        Returns:
-            Path to generated audio file or None
-        """
-        try:
-            # Extract only the specified voice part
-            voice_part = None
-            voice_mapping = {'S': 0, 'A': 1, 'T': 2, 'B': 3}
-            
-            if voice in voice_mapping and voice_mapping[voice] < len(score.parts):
-                voice_part = score.parts[voice_mapping[voice]]
-            
-            if voice_part is None:
-                print(f"Voice {voice} not found in score")
-                return None
-            
-            # Create new score with only this voice
-            voice_score = type(score)()
-            voice_score.append(voice_part)
-            
-            # Check if voice has notes
-            has_notes = len(voice_part.flat.getElementsByClass(['Note', 'Chord'])) > 0
-            if not has_notes:
-                print(f"Voice {voice} has no notes to render")
-                return None
-            
-            # Generate MIDI
-            midi_path = score_to_midi(voice_score)
-            
-            # Generate audio with duration limit
-            audio_file = None
-            try:
-                wav_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{voice}.wav")
-                render_audio_with_tuning(
-                    midi_path=str(midi_path),
-                    wav_path=str(wav_tmp.name),
-                    base_tuning=base_tuning,
-                    duration_limit=duration_limit
-                )
-                audio_file = Path(wav_tmp.name)
-                midi_path.unlink()
-                
-                print(f"Generated {voice} voice audio: {audio_file}")
-                
-            except Exception as e:
-                print(f"Error generating {voice} voice audio: {e}")
-                return None
-            
-            return audio_file
-            
-        except Exception as e:
-            print(f"Error processing {voice} voice: {e}")
-            return None
-    
-    def generate_master_audio(self, score, base_tuning: float, 
-                          duration_limit: int = 60) -> Optional[Path]:
-        """
-        Generate full ensemble audio.
-        
-        Args:
-            score: Music21 Score object
-            base_tuning: Base tuning frequency
-            duration_limit: Maximum duration in seconds
-            
-        Returns:
-            Path to generated master audio file or None
-        """
-        try:
-            midi_path = score_to_midi(score)
-            
-            # Generate master audio with longer duration
-            wav_tmp = tempfile.NamedTemporaryFile(delete=False, suffix="_master.wav")
-            render_audio_with_tuning(
-                midi_path=str(midi_path),
-                wav_path=str(wav_tmp.name),
-                base_tuning=base_tuning,
-                duration_limit=duration_limit
-            )
-            master_file = Path(wav_tmp.name)
-            midi_path.unlink()
-            
-            print(f"Generated master ensemble audio: {master_file}")
-            
-            return master_file
-            
-        except Exception as e:
-            print(f"Error generating master audio: {e}")
-            return None
-
-
-def detailed_harmonize_with_voice_previews(score_file, prompts, base_tuning=None):
-    """
-    Enhanced harmonization with individual voice previews.
-    """
-    if base_tuning is None:
-        base_tuning = AudioDefaults.BASE_TUNING
-    
-    try:
-        # Load original score
-        original_score = load_musicxml(score_file)
-        
-        # Generate harmonized score
-        llm = DummyLLM()
-        llm_suggestions = llm.harmonize_multi_voice(prompts)
-        
-        harmonized_score = load_musicxml(score_file)  # Fresh copy
-        for voice, suggestion in llm_suggestions.items():
-            measure_num = suggestion.get('measure', 1)
-            if measure_num <= 4:  # Only modify first 4 measures
-                new_root = suggestion.get('root', 'C')
-                try:
-                    replace_chord_in_measure(harmonized_score, measure_num, new_root, 'major')
-                except Exception as e:
-                    print(f"Could not replace chord in measure {measure_num}: {e}")
-
-        # Save harmonized score
-        tmp_xml = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
-        write_musicxml(harmonized_score, tmp_xml.name)
-        
-        # Initialize voice preview generator
-        voice_preview = VoiceAudioPreview()
-        
-        # Generate voice-specific audio files
-        voice_audios = {}
-        voice_info = {}
-        
-        for voice in ['S', 'A', 'T', 'B']:
-            if voice in ['Soprano', 'Alto', 'Tenor', 'Bass']:
-                # Map to voice names
-                voice_map = {'S': 'Soprano', 'A': 'Alto', 'T': 'Tenor', 'B': 'Bass'}
-                display_voice = voice_map.get(voice, voice)
-            else:
-                display_voice = voice
-            
-            voice_audio = voice_preview.generate_voice_audio(
-                harmonized_score, 
-                voice, 
-                base_tuning, 
-                duration_limit=15  # Shorter duration for individual voices
-            )
-            
-            if voice_audio:
-                voice_audios[display_voice] = voice_audio
-                voice_info[display_voice] = {
-                    'file': str(voice_audio),
-                    'size': voice_audio.stat().st_size if voice_audio.exists() else 0,
-                    'duration_est': voice_audio.stat().st_size / 88200  # Estimate
-                }
-            else:
-                voice_info[display_voice] = {
-                    'file': None,
-                    'error': f"No audio generated for {display_voice}"
-                }
-        
-        # Generate master ensemble audio
-        master_audio = voice_preview.generate_master_audio(
-            harmonized_score, 
-            base_tuning, 
-            duration_limit=45  # Longer for ensemble
-        )
-        
-        master_info = {
-            'file': str(master_audio) if master_audio else None,
-            'size': master_audio.stat().st_size if master_audio and master_audio.exists() else 0,
-            'duration_est': master_audio.stat().st_size / 88200 if master_audio and master_audio.exists() else 0,
-        }
-        
-        # Create comprehensive summary
-        summary = f"""✅ **Detailed Voice-Specific Harmonization Complete**
-
-**🎵 Applied Changes:**
-- Voice prompts processed for S/A/T/B
-- Chord replacements in measures 1-4
-- Base tuning: {base_tuning} Hz
-- Voice-specific audio generation
-
-**🎼 Individual Voice Audio:**
-"""
-        
-        for voice, info in voice_info.items():
-            if 'error' in info:
-                summary += f"• {voice}: {info['error']}\n"
-            else:
-                summary += f"""• {voice} ({info['duration_est']:.1f}s): {info['file']}\n"""
-        
-        summary += f"""
-**🎵 Ensemble Master Audio:**
-"""
-        if 'error' not in master_info:
-            summary += f"""• Master Mix ({master_info['duration_est']:.1f}s): {master_info['file']}\n"""
-        else:
-            summary += "• Master Mix: Generation failed\n"
-
-        summary += f"""
-**📊 Technical Details:**
-- Total voices processed: {len([v for v in voice_info.keys() if not voice_info[v].get('error')])}
-- Audio samples: 44.1kHz, 16-bit stereo
-- Individual voice duration: ~15 seconds each
-- Master duration: ~45 seconds
-- Base tuning applied throughout
-
-**📁 Output Files:**
-- Harmonized MusicXML: Ready for download
-- Individual voice audio: {len([v for v in voice_audios.values() if voice_audios[v]])} files
-- Master ensemble audio: {'Available' if master_info['file'] else 'Not available'}
-"""
-        
-        return {
-            'harmonized_xml': str(Path(tmp_xml.name)),
-            'voice_audios': voice_audios,
-            'master_audio': master_info.get('file'),
-            'summary': summary
-        }
-        
-    except Exception as e:
-        return {
-            'harmonized_xml': None,
-            'voice_audios': {},
-            'master_audio': None,
-            'summary': f"❌ **Error:** {str(e)}"
-        }
-
-
-def create_enhanced_interface():
-    """Create enhanced interface with voice previews."""
-    
-    with gr.Blocks(title="Choral LLM Workbench - Voice-Specific Audio Preview") as app:
-        gr.Markdown("## 🎵 SATB Harmonization with Individual Voice Previews")
-        gr.Markdown("Upload MusicXML, enter voice-specific prompts, and get individual voice audio files!")
-        
-        # File input section
         with gr.Row():
-            score_input = gr.File(label="📁 Upload MusicXML", file_types=[".xml", ".musicxml", ".mxl"])
-        
-        # Audio tuning controls
-        with gr.Row():
-            with gr.Column(scale=2):
-                tuning_slider = gr.Slider(
-                    minimum=min(AudioDefaults.TUNING_OPTIONS),
-                    maximum=max(AudioDefaults.TUNING_OPTIONS),
-                    value=AudioDefaults.BASE_TUNING,
-                    step=1.0,
-                    label="🎛️ Base Tuning (Hz)"
-                )
+            score_input = gr.File(
+                label="📁 Upload MusicXML", 
+                file_types=[".xml", ".musicxml", ".mxl"]
+            )
             with gr.Column(scale=1):
-                tuning_display = gr.Textbox(
-                    label="Current Tuning",
-                    value=f"{AudioDefaults.BASE_TUNING} Hz",
+                score_info = gr.Textbox(
+                    label="📊 Score Information",
+                    lines=6,
+                    max_lines=8,
                     interactive=False
                 )
         
-        # Voice prompts section
-        gr.Markdown("### 🎤 Individual Voice Prompts")
         with gr.Row():
-            s_prompt = gr.Textbox(label="🎼 Soprano", value="Make soprano more expressive and lyrical", lines=3)
-            a_prompt = gr.Textbox(label="🎼 Alto", value="Add rich harmonies to alto part", lines=3)
-        with gr.Row():
-            t_prompt = gr.Textbox(label="🎼 Tenor", value="Enhance tenor with warm resonance", lines=3)
-            b_prompt = gr.Textbox(label="🎼 Bass", value="Create solid harmonic foundation", lines=3)
+            score_image = gr.Image(
+                label="📄 Score Visualization",
+                height=300,
+                interactive=False
+            )
+    
+        # Event handler
+        def update_view(file_obj):
+            return viewer.update_score_view(file_obj)
         
-        # Advanced options
-        with gr.Row():
-            with gr.Column(scale=2):
-                gr.Markdown("### 🎛️ Audio Generation Options")
-                individual_duration = gr.Slider(
-                    minimum=5,
-                    maximum=30,
-                    value=15,
-                    step=1,
-                    label="Individual Voice Duration (seconds)"
-                )
-                master_duration = gr.Slider(
-                    minimum=10,
-                    maximum=90,
-                    value=45,
-                    step=5,
-                    label="Master Mix Duration (seconds)"
-                )
+        # Wire up event
+        score_input.change(
+            fn=update_view,
+            inputs=[score_input],
+            outputs=[score_info, score_image]
+        )
+    
+    return viewer_col, score_input, score_info, score_image
+
+
+class BasicScoreViewer:
+    """Basic score viewer with minimal dependencies."""
+    
+    def __init__(self):
+        self.current_score = None
+        self.score_info = {}
         
-        # Action buttons
-        with gr.Row():
-            harmonize_btn = gr.Button("🎯 Harmonize with Voice Previews", variant="primary", size="lg")
+    def update_score_view(self, file_obj) -> tuple:
+        """Update the score view with new file."""
+        if file_obj is None:
+            return None, "Please upload a MusicXML file"
         
-        # Score preview section
-        gr.Markdown("### 📊 Score Visualization")
-        score_col, score_image, score_info = create_simple_viewer()
-        
-        # Voice audio preview section
-        gr.Markdown("### 🎼 Individual Voice Audio Previews")
-        
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("#### 🎵 Soprano")
-                s_audio = gr.Audio(label="Soprano Audio", interactive=False)
-                s_info = gr.Textbox(label="Soprano Info", lines=3, interactive=False)
+        try:
+            if hasattr(file_obj, 'name'):
+                file_path = file_obj.name
+            else:
+                file_path = str(file_obj)
             
-            with gr.Column():
-                gr.Markdown("#### 🎼 Alto")
-                a_audio = gr.Audio(label="Alto Audio", interactive=False)
-                a_info = gr.Textbox(label="Alto Info", lines=3, interactive=False)
+            self.current_score = converter.parse(file_path)
+            self._extract_basic_info()
+            return True, self.get_score_info_text()
             
-            with gr.Column():
-                gr.Markdown("#### 🎼 Tenor")
-                t_audio = gr.Audio(label="Tenor Audio", interactive=False)
-                t_info = gr.Textbox(label="Tenor Info", lines=3, interactive=False)
+        except Exception as e:
+            return False, f"❌ Error: {str(e)}"
+    
+    def _extract_basic_info(self):
+        """Extract basic information from score."""
+        if not self.current_score:
+            return
+        
+        self.score_info = {
+            'parts': len(self.current_score.parts),
+            'measures': 0,
+            'part_names': []
+        }
+        
+        # Count measures and get part names
+        if self.current_score.parts:
+            self.score_info['measures'] = len(self.current_score.parts[0].getElementsByClass('Measure'))
             
-            with gr.Column():
-                gr.Markdown("#### 🎼 Bass")
-                b_audio = gr.Audio(label="Bass Audio", interactive=False)
-                b_info = gr.Textbox(label="Bass Info", lines=3, interactive=False)
+            for part in self.current_score.parts:
+                part_name = getattr(part, 'partName', f'Part {len(self.score_info.get("part_names", [])) + 1}')
+                self.score_info['part_names'].append(part_name)
+    
+    def get_score_info_text(self) -> str:
+        """Get score information as text."""
+        if not self.score_info:
+            return "No score loaded"
         
-        # Master audio section
-        gr.Markdown("### 🎵 Master Ensemble Audio")
-        with gr.Row():
-            master_audio = gr.Audio(label="Master Mix", interactive=False)
-            master_info = gr.Textbox(label="Master Info", lines=4, interactive=False)
+        return f"""📊 **Score Information**
+Parts: {self.score_info.get('parts', 0)}
+Measures: {self.score_info.get('measures', 0)}
+Part Names: {', '.join(self.score_info.get('part_names', []))}
+"""
+    
+    def render_score_preview(self) -> Optional[str]:
+        """Render a basic score preview."""
+        if not self.current_score:
+            return None
         
-        # Output section
-        gr.Markdown("### 📤 Output Results")
+        try:
+            # Create simple figure
+            fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+            ax.set_xlim(0, 100)
+            ax.set_ylim(0, 50)
+            ax.set_aspect('equal')
+            ax.axis('off')
+            
+            # Basic score representation
+            y_offset = 25
+            for i, part in enumerate(self.current_score.parts[:4]):
+                part_num = i + 1
+                
+                # Draw staff line
+                ax.plot([10, 90], [y_offset, y_offset], 'k-', linewidth=1)
+                
+                # Draw part name
+                ax.text(2, y_offset + 2, f'Voice {part_num}', fontsize=8, ha='left')
+                
+                # Draw first few notes (simplified)
+                note_count = 0
+                for measure in part.getElementsByClass('Measure')[:6]:  # Show first 6 measures
+                    if note_count >= 8:  # Limit total notes
+                        break
+                    measure_x = 10 + measure.number * 12
+                    
+                    for element in measure.getElementsByClass(['Note', 'Chord']):
+                        if note_count >= 8:
+                            break
+                        if hasattr(element, 'pitch'):
+                            note_y = y_offset + (element.pitch.midi % 12) * 0.3 - 1
+                            # Simple circle for each note
+                            ax.plot(measure_x, note_y, 'o', markersize=3, zorder=10)
+                            note_count += 1
+                
+                y_offset -= 6
+            
+            # Simple title
+            plt.title(f"Score Viewer - {self.score_info.get('parts', 0)} parts")
+            plt.tight_layout()
+            
+            # Convert to base64
+            buffer = plt.BytesIO()
+            plt.savefig(buffer, format='png', dpi=80, bbox_inches='tight')
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.read()).decode()
+            plt.close()
+            
+            return f"data:image/png;base64,{image_base64}"
+            
+        except Exception as e:
+            print(f"Error rendering preview: {e}")
+            return None
+
+
+def create_voice_preview_interface():
+    """Create the voice preview interface."""
+    
+    with gr.Blocks(title="Choral LLM Workbench - Voice Previews") as app:
+        gr.Markdown("## 🎼 SATB Voice Preview Interface")
+        gr.Markdown("Upload MusicXML to preview individual voices and generate audio.")
+        
+        # File input
+        score_input = gr.File(label="📁 Upload MusicXML", file_types=[".xml", ".musicxml", ".mxl"])
+        
+        # Display areas
         with gr.Row():
-            with gr.Column(scale=2):
-                output_file = gr.File(label="📄 Harmonized MusicXML", interactive=False)
             with gr.Column(scale=1):
-                output_summary = gr.Textbox(
-                    label="📝 Detailed Summary",
-                    lines=15,
-                    max_lines=20,
-                    interactive=False,
-                    show_copy_button=True
+                score_info = gr.Textbox(
+                    label="📊 Score Information",
+                    lines=6,
+                    interactive=False
                 )
-        
-        # Download buttons
-        gr.Markdown("### 📁 Download Options")
-        with gr.Row():
-            with gr.Column():
-                download_individual = gr.Button("📁 Download All Voices", variant="secondary", size="sm")
-            with gr.Column():
-                download_master = gr.Button("📄 Download Master Mix", variant="secondary", size="sm")
-        
-        # State management
-        prompts_state = gr.State({})
-        results_state = gr.State({})
+                score_preview = gr.Image(
+                    label="📝 Score Preview",
+                    height=300
+                )
+            
+            with gr.Column(scale=2):
+                # Voice controls
+                with gr.Row():
+                    with gr.Column():
+                        soprano_check = gr.Checkbox(label="🎵 Soprano", value=True)
+                        alto_check = gr.Checkbox(label="🎵 Alto", value=True)
+                    with gr.Column():
+                        tenor_check = gr.Checkbox(label="🎵 Tenor", value=True)
+                        bass_check = gr.Checkbox(label="🎵 Bass", value=True)
+                
+                # Duration control
+                duration = gr.Slider(
+                    minimum=5,
+                    maximum=60,
+                    value=15,
+                    step=5,
+                    label="⏱️ Duration (seconds)"
+                )
+                
+                # Audio outputs
+                with gr.Row():
+                    soprano_audio = gr.Audio(label="Soprano")
+                    alto_audio = gr.Audio(label="Alto")
+                with gr.Row():
+                    tenor_audio = gr.Audio(label="Tenor")
+                    bass_audio = gr.Audio(label="Bass")
+                
+                # Master audio
+                master_audio = gr.Audio(label="🎼 Full Ensemble")
         
         # Event handlers
-        def update_prompts(s_prompt, a_prompt, t_prompt, b_prompt):
-            return {"S": s_prompt, "A": a_prompt, "T": t_prompt, "B": b_prompt}
+        viewer = BasicScoreViewer()
         
-        def update_tuning_display(tuning_value):
-            return f"{tuning_value} Hz"
+        def update_interface(file_obj):
+            """Update all interface elements."""
+            if file_obj is None:
+                return (
+                    "No file uploaded",
+                    None,
+                    *[None] * 6  # 6 audio outputs
+                )
+            
+            try:
+                success, preview = viewer.update_score_view(file_obj)
+                info_text = viewer.get_score_info_text()
+                
+                return (
+                    info_text,
+                    preview,
+                    *[None] * 6  # Audio will be generated on demand
+                )
+            except Exception as e:
+                return (
+                    f"❌ Error: {str(e)}",
+                    None,
+                    *[None] * 6
+                )
         
-        def harmonize_with_previews(score_file, prompts, base_tuning, individual_duration, master_duration):
-            """Main harmonization function with voice previews."""
-            return detailed_harmonize_with_voice_previews(score_file, prompts, base_tuning)
-        
-        # Wire up events
-        for prompt_input in [s_prompt, a_prompt, t_prompt, b_prompt]:
-            prompt_input.change(
-                fn=update_prompts,
-                inputs=[s_prompt, a_prompt, t_prompt, b_prompt],
-                outputs=[prompts_state]
-            )
-        
-        tuning_slider.change(
-            fn=update_tuning_display,
-            inputs=[tuning_slider],
-            outputs=[tuning_display]
-        )
-        
-        # Update score view when file changes
-        # Update score view when file changes
         score_input.change(
-            fn=update_simple_view,
+            fn=update_interface,
             inputs=[score_input],
-            outputs=[score_image, score_info]
-        )
-        
-        # Main harmonization with voice previews
-        harmonize_btn.click(
-            fn=harmonize_with_previews,
-            inputs=[score_input, prompts_state, tuning_slider, individual_duration, master_duration],
-            outputs=[output_file, s_audio, s_info, a_audio, a_info, t_audio, t_info, b_audio, b_info, master_audio, master_info, output_summary]
-        )
-        
-        # Placeholder for download buttons (would need file handling)
-        download_individual.click(
-            fn=lambda: "📁 Download functionality coming soon!",
-            outputs=[output_summary]
-        )
-        
-        download_master.click(
-            fn=lambda: "📄 Download functionality coming soon!",
-            outputs=[output_summary]
+            outputs=[
+                score_info, score_preview,
+                soprano_audio, alto_audio, tenor_audio, bass_audio, master_audio
+            ]
         )
     
     return app
-
-
-if __name__ == "__main__":
-    app = create_enhanced_interface()
-    app.launch(
-        server_name="0.0.0.0",
-        server_port=7860,
-        share=False,
-        debug=False
-    )
