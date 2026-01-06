@@ -32,14 +32,18 @@
           <option v-for="t in tuningOptions" :value="t">{{ t }}</option>
         </select>
       </div>
-      <button class="harmonize" @click="harmonize">Harmonize</button>
+      <div class="row actions-row">
+        <button class="harmonize" @click="harmonize">Harmonize</button>
+        <button class="undo" @click="undo" style="margin-left: 8px;">Undo</button>
+        <button class="redo" @click="redo" style="margin-left: 8px;">Redo</button>
+        <button class="audio" @click="generateAudio" style="margin-left: 8px;">Generate Audio</button>
+      </div>
     </section>
 
     <section class="results" v-if="results">
       <h2>LLM Suggestions</h2>
       <pre>{{ results }}</pre>
       <button @click="exportScore">Export MusicXML</button>
-      <button @click="generateAudio" style="margin-left: 8px;">Generate Audio</button>
     </section>
 
     <section class="audio" v-if="audios.length">
@@ -144,30 +148,55 @@ export default {
     }
 
     const generateAudio = async () => {
+      // Phase 5: call new per-voice audio endpoint
       if (!scoreId.value) return
       const payload = {
         scoreId: scoreId.value,
         voices: ['S','A','T','B'],
         tuning: tuning.value,
-        duration: 15,
-        instrument: 'piano'
+        duration: 15
       }
-      const res = await fetch('/api/score/generate-audio', {
+      const res = await fetch('/api/harmonize/generate-audio-per-voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
       if (res.ok) {
         const data = await res.json()
-        if (data?.audioUrls?.length) {
-          audios.value = data.audioUrls.map((u: string, i: number) => ({ label: `Voice ${i+1}`, src: u }))
-        } else if (data?.src) {
-          audios.value = [{ label: 'Preview', src: data.src }]
+        if (data?.perVoiceAudios) {
+          audios.value = data.perVoiceAudios.map((a: any) => ({ label: a.voice, src: a.src }))
         }
       }
     }
 
-    return { onFileSelected, harmonize, exportScore, generateAudio, models, selectedModel, tuningOptions, tuning, prompts, results, scoreId, scoreInfo, audios, voices }
+    // Undo/Redo endpoints
+    const undo = async () => {
+      if (!scoreId.value) return
+      const res = await fetch('/api/harmonize/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scoreId: scoreId.value })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        results.value = data
+      }
+    }
+
+    const redo = async () => {
+      if (!scoreId.value) return
+      const res = await fetch('/api/harmonize/redo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scoreId: scoreId.value })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        results.value = data
+      }
+    }
+
+    return { onFileSelected, harmonize, exportScore, generateAudio, models, selectedModel, tuningOptions, tuning, prompts, results, scoreId, scoreInfo, audios, voices, undo, redo, generateAudio }
   }
 }
 </script>
@@ -179,9 +208,10 @@ label { display: block; font-weight: bold; margin-bottom: 6px; }
 input[type="file"] { display: block; }
 textarea { width: 100%; min-height: 60px; }
 select { padding: 6px; }
-button { padding: 8px 12px; margin-top: 8px; }
+button { padding: 8px 12px; margin-top: 6px; }
 .prompts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .voice { padding: 6px; border: 1px solid #eee; border-radius: 6px; background: #fafafa; }
 .score-info { font-size: 0.9em; color: #333; }
 .audio-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.actions-row { display: flex; align-items: center; }
 </style>
