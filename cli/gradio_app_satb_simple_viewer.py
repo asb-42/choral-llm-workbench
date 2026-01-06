@@ -110,14 +110,11 @@ class SimpleScoreViewer:
             plt.title(f"Score Viewer - {self.score_info['parts']} parts, {self.score_info['measures']} measures")
             plt.tight_layout()
             
-            # Convert to base64
-            buffer = plt.BytesIO()
-            plt.savefig(buffer, format='png', dpi=80, bbox_inches='tight')
-            buffer.seek(0)
-            image_base64 = base64.b64encode(buffer.read()).decode()
+            # Save to file and return file path
+            tmp_image = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            plt.savefig(tmp_image.name, format='png', dpi=80, bbox_inches='tight')
             plt.close()
-            
-            return f"data:image/png;base64,{image_base64}"
+            return tmp_image.name
             
         except Exception as e:
             print(f"Error rendering image: {e}")
