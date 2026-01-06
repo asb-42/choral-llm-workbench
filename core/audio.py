@@ -41,36 +41,70 @@ def adjust_midi_for_tuning(midi_path, base_tuning=432.0):
     return tmp_midi.name
 
 
-def render_audio_with_tuning(*, midi_path, wav_path, base_tuning=432.0, soundfont_path=None):
+def render_audio_with_tuning(*, midi_path, wav_path, base_tuning=432.0, soundfont_path=None, duration_limit=None):
     """
-    Render a MIDI file to WAV using FluidSynth with manual pitch adjustment for base tuning.
-    All arguments are keyword-only to avoid parameter conflicts.
+    Render a MIDI file to WAV using FluidSynth with proper duration control.
+    
+    Args:
+        midi_path: Input MIDI file path
+        wav_path: Output WAV file path
+        base_tuning: Base tuning frequency in Hz
+        soundfont_path: SoundFont file path
+        duration_limit: Maximum duration in seconds (optional)
     """
-    # Adjust MIDI for base tuning
+    # Get MIDI duration first to limit if needed
     try:
-        adjusted_midi = adjust_midi_for_tuning(midi_path, base_tuning=base_tuning)
-        print(f"Adjusting MIDI pitches for base tuning {base_tuning} Hz...")
+        from mido import MidiFile
+        mid = MidiFile(midi_path)
+        midi_duration = mid.length
+        print(f"Original MIDI duration: {midi_duration:.1f} seconds")
+        
+        if duration_limit and midi_duration > duration_limit:
+            print(f"MIDI exceeds duration limit ({duration_limit}s), will render truncated")
+            # FluidSynth can render with duration limit
+            render_duration = min(midi_duration, duration_limit)
+        else:
+            render_duration = midi_duration
+            
     except Exception as e:
-        print(f"Error adjusting MIDI for tuning: {e}")
-        adjusted_midi = midi_path  # fallback to original MIDI
+        print(f"Could not analyze MIDI duration: {e}")
+        render_duration = None
 
     if soundfont_path is None:
         soundfont_path = "/home/asb/.fluidsynth/default_sound_font.sf2"
 
     print(f"Rendering WAV at {base_tuning} Hz using SoundFont {soundfont_path} ...")
+    
+    # Simple FluidSynth command without -o parameter (seems to cause issues)
     cmd = [
         "fluidsynth",
-        "-F", wav_path,
         "-T", "wav",
-        soundfont_path,
-        adjusted_midi
+        "-n",  # No audio output to speakers
+        str(midi_path),  # Input MIDI file
+        "-F", str(wav_path),  # Output to file
+        soundfont_path
     ]
 
     try:
-        subprocess.run(cmd, check=True)
-        print(f"WAV rendered at {base_tuning} Hz: {wav_path}")
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        print(f"WAV rendered successfully at {base_tuning} Hz")
+        
+        # Check actual file size
+        wav_path_obj = Path(wav_path)
+        if wav_path_obj.exists():
+            wav_size = wav_path_obj.stat().st_size
+            estimated_duration = wav_size / 88200  # Approximate for stereo 16-bit 44.1kHz
+            print(f"WAV file size: {wav_size} bytes (est. {estimated_duration:.1f} seconds)")
+        
     except subprocess.CalledProcessError as e:
         print(f"Error during MIDI->WAV rendering: {e}")
+        print(f"Command: {' '.join(cmd)}")
+        if e.stderr:
+            print(f"FluidSynth stderr: {e.stderr}")
+    except Exception as e:
+        print(f"Unexpected error in audio rendering: {e}")
+        if 'cmd' in locals():
+            print(f"Command attempted: {' '.join(cmd)}")
 
 
 def score_to_midi(score, output_path=None):

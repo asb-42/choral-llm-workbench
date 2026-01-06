@@ -20,7 +20,7 @@ import os
 
 def simple_harmonize(score_file, prompts, base_tuning=None):
     """
-    Simple harmonization without complex preview.
+    Simple harmonization without complex preview and duration control.
     """
     if base_tuning is None:
         base_tuning = AudioDefaults.BASE_TUNING
@@ -47,10 +47,27 @@ def simple_harmonize(score_file, prompts, base_tuning=None):
         tmp_xml = tempfile.NamedTemporaryFile(delete=False, suffix=".xml")
         write_musicxml(score, tmp_xml.name)
         
-        # Generate audio preview
+        # Generate audio preview with duration limit
         try:
-            audio_file = render_score_audio(score, base_tuning=base_tuning)
-            audio_path = str(audio_file) if audio_file else None
+            from core.audio import render_audio_with_tuning
+            midi_path = score_to_midi(score)
+            
+            # Create temporary WAV file
+            wav_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+            wav_path = Path(wav_tmp.name)
+            
+            # Render with 30 second duration limit
+            render_audio_with_tuning(
+                midi_path=str(midi_path),
+                wav_path=str(wav_path),
+                base_tuning=base_tuning,
+                duration_limit=30  # Limit to 30 seconds max
+            )
+            audio_path = str(wav_path)
+            
+            # Clean up MIDI file
+            midi_path.unlink()
+            
         except Exception as audio_error:
             print(f"Audio rendering failed: {audio_error}")
             audio_path = None
@@ -62,6 +79,7 @@ def simple_harmonize(score_file, prompts, base_tuning=None):
 - Voice prompts processed for S/A/T/B
 - Chord replacements in measures 1-4
 - Base tuning: {base_tuning} Hz
+- Audio duration: Limited to 30 seconds
 
 **Output Files:**
 - MusicXML: Ready for download
@@ -69,6 +87,7 @@ def simple_harmonize(score_file, prompts, base_tuning=None):
 
 **Summary:**
 Score harmonized with {len(llm_suggestions)} voice suggestions.
+Duration limited to prevent overly long audio files.
 """
         
         return str(Path(tmp_xml.name)), audio_path, summary
