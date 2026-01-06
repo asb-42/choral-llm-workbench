@@ -59,9 +59,23 @@ with gr.Blocks() as app:
         output_audio = gr.Audio(label="Audio Preview")
         output_text = gr.Textbox(label="LLM Suggestions")
 
+        # Store prompts in gr.State separately to avoid deepcopy issues
+    prompts_state = gr.State({})
+    
+    def update_prompts(s_prompt, a_prompt, t_prompt, b_prompt):
+        return {"S": s_prompt, "A": a_prompt, "T": t_prompt, "B": b_prompt}
+    
+    # Update prompts state when any prompt changes
+    for prompt_input in [s_prompt, a_prompt, t_prompt, b_prompt]:
+        prompt_input.change(
+            fn=update_prompts,
+            inputs=[s_prompt, a_prompt, t_prompt, b_prompt],
+            outputs=[prompts_state]
+        )
+    
     harmonize_btn.click(
         fn=harmonize_multi_voice,
-        inputs=[score_input, gr.State({"S": s_prompt, "A": a_prompt, "T": t_prompt, "B": b_prompt})],
+        inputs=[score_input, prompts_state],
         outputs=[output_file, output_audio, output_text]
     )
 

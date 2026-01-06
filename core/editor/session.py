@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 
-class Session:
+class EditorSession:
     """
     Holds the current score, history, and future states
     for undo/redo functionality.
