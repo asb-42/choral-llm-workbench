@@ -245,27 +245,52 @@ class WorkingAudioPreview:
     def _extract_notes_from_part(self, part_index: int, base_tuning: float = 440.0) -> List[Dict]:
         """Extract actual notes from MusicXML part."""
         notes = []
-        if part_index < len(self.current_score.parts):
-            part = self.current_score.parts[part_index]
-            
-            for measure in part.getElementsByClass('Measure'):
-                for element in measure.notesAndRests:
-                    if element.isNote:
-                        note_name = element.name
-                        octave = element.octave
-                        duration = element.duration.quarterLength
-                        
-                        # Convert note to frequency
-                        frequency = self._note_to_frequency(note_name, octave, base_tuning)
-                        
-                        notes.append({
-                            'name': note_name,
-                            'octave': octave,
-                            'frequency': frequency,
-                            'duration': duration,
-                            'measure': measure.number
-                        })
+        print(f"   🔍 Extracting notes from part {part_index}")
         
+        if not self.current_score:
+            print(f"   ❌ No current score loaded")
+            return notes
+            
+        if not hasattr(self.current_score, 'parts'):
+            print(f"   ❌ Score has no parts attribute")
+            return notes
+            
+        if part_index >= len(self.current_score.parts):
+            print(f"   ❌ Part index {part_index} out of range (0-{len(self.current_score.parts)-1})")
+            return notes
+            
+        part = self.current_score.parts[part_index]
+        print(f"   📄 Processing part: {getattr(part, 'partName', f'Voice {part_index+1}')}")
+        
+        measure_count = 0
+        note_count = 0
+        
+        for measure in part.getElementsByClass('Measure'):
+            measure_count += 1
+            for element in measure.notesAndRests:
+                if element.isNote:
+                    note_name = element.name
+                    octave = element.octave
+                    duration = element.duration.quarterLength
+                    
+                    # Convert note to frequency
+                    frequency = self._note_to_frequency(note_name, octave, base_tuning)
+                    
+                    note_data = {
+                        'name': note_name,
+                        'octave': octave,
+                        'frequency': frequency,
+                        'duration': duration,
+                        'measure': measure.number
+                    }
+                    notes.append(note_data)
+                    note_count += 1
+                    
+                    print(f"      🎵 Note {note_count}: {note_name}{octave} ({frequency:.2f} Hz) - {duration} beats")
+                elif element.isRest:
+                    print(f"      🤫 Rest in measure {measure.number}")
+        
+        print(f"   📊 Extracted {note_count} notes from {measure_count} measures")
         return notes
     
     def _note_to_frequency(self, note_name: str, octave: int, base_tuning: float = 440.0) -> float:
@@ -282,7 +307,10 @@ class WorkingAudioPreview:
         octave_diff = octave - a4_octave
         
         # Frequency formula: f = base_tuning * 2^((semitone_offset + octave_diff * 12) / 12)
-        frequency = base_tuning * (2 ** ((semitone_offset + octave_diff * 12) / 12))
+        total_semitones = semitone_offset + octave_diff * 12
+        frequency = base_tuning * (2 ** (total_semitones / 12))
+        
+        print(f"      Frequency calc: {note_name}{octave} -> {semitone_offset} semitones -> {total_semitones} total -> {frequency:.2f} Hz")
         return frequency
     
     def _create_note_audio(self, notes: List[Dict], voice_index: int, base_tuning: float = 440.0) -> Optional[str]:
@@ -589,6 +617,14 @@ def create_working_audio_interface():
                 with gr.Row():
                     generate_individual_btn = gr.Button("🎧 Generate Individual Voices", variant="primary")
                     generate_master_btn = gr.Button("🎼 Generate Master Audio", variant="secondary")
+                
+                # Progress feedback
+                generation_progress = gr.Textbox(
+                    label="📊 Generation Status",
+                    lines=3,
+                    interactive=False,
+                    value="Ready to generate audio..."
+                )
         
         # Audio outputs
         with gr.Row():
@@ -636,39 +672,51 @@ def create_working_audio_interface():
         def generate_individual_audio(file_obj, duration, base_tuning, soprano, alto, tenor, bass):
             """Generate audio for selected voices with configurable tuning."""
             if file_obj is None:
-                return tuple([None] * 4 + [gr.update(visible=False)] * 4)
+                return tuple([None] * 4 + [gr.update(visible=False)] * 4 + ["Ready to generate audio..."])
             
-            try:
-                voices_enabled = [soprano, alto, tenor, bass]
-                audio_files = [None] * 4
-                visibility = [False] * 4
-                
-                print(f"Generating audio for voices: {voices_enabled}")
-                print(f"Base tuning: {base_tuning} Hz")
-                
-                for i, enabled in enumerate(voices_enabled):
-                    if enabled and i < len(previewer.score_info['part_names']):
-                        audio_path = previewer.generate_audio_for_voice(i, duration, base_tuning)
-                        if audio_path:
-                            audio_files[i] = audio_path
-                            visibility[i] = True
-                            print(f"✅ Voice {i} ({previewer.score_info['part_names'][i]}): {audio_path}")
-                        else:
-                            print(f"❌ Voice {i} failed to generate")
+            status_messages = []
+            voices_enabled = [soprano, alto, tenor, bass]
+            audio_files = [None] * 4
+            visibility = [False] * 4
+            
+            status_messages.append(f"🎵 Starting audio generation...")
+            status_messages.append(f"🎼 Base tuning: {base_tuning} Hz")
+            status_messages.append(f"🎤 Enabled voices: {[i for i, enabled in enumerate(voices_enabled) if enabled]}")
+            
+            print(f"Generating audio for voices: {voices_enabled}")
+            print(f"Base tuning: {base_tuning} Hz")
+            
+            for i, enabled in enumerate(voices_enabled):
+                if enabled and i < len(previewer.score_info['part_names']):
+                    status_messages.append(f"🔍 Processing Voice {i}: {previewer.score_info['part_names'][i]}...")
+                    
+                    audio_path = previewer.generate_audio_for_voice(i, duration, base_tuning)
+                    if audio_path:
+                        audio_files[i] = audio_path
+                        visibility[i] = True
+                        status_messages.append(f"✅ Voice {i} SUCCESS: {os.path.basename(audio_path)}")
+                        print(f"✅ Voice {i} ({previewer.score_info['part_names'][i]}): {audio_path}")
                     else:
-                        print(f"⏭️ Voice {i} disabled or out of range")
+                        status_messages.append(f"❌ Voice {i} FAILED")
+                        print(f"❌ Voice {i} failed to generate")
+                else:
+                    reason = "disabled" if not enabled else "out of range"
+                    status_messages.append(f"⏭️ Voice {i} skipped ({reason})")
+                    print(f"⏭️ Voice {i} {reason}")
+            
+            status_messages.append(f"🎯 Generation complete: {sum(visibility)} of {len(voices_enabled)} voices generated")
+            print(f"Final audio files: {audio_files}")
+            print(f"Visibility flags: {visibility}")
+            
+            return tuple(audio_files) + tuple(
+                gr.update(visible=v, value=audio_files[i] if v else None) 
+                for i, v in enumerate(visibility)
+            ) + ("\n".join(status_messages),)
                 
-                print(f"Final audio files: {audio_files}")
-                print(f"Visibility flags: {visibility}")
-                
-                return tuple(audio_files) + tuple(
-                    gr.update(visible=v, value=audio_files[i] if v else None) 
-                    for i, v in enumerate(visibility)
-                )
-                
-            except Exception as e:
+        except Exception as e:
+                error_msg = f"❌ ERROR: {str(e)}"
                 print(f"Error in generate_individual_audio: {e}")
-                return tuple([None] * 8)  # 4 audio files + 4 visibility updates
+                return tuple([None] * 8 + [error_msg])  # 4 audio files + 4 visibility updates + status
         
         def generate_master_audio_func(file_obj, duration):
             """Generate master audio."""
@@ -697,7 +745,7 @@ def create_working_audio_interface():
             fn=generate_individual_audio,
             inputs=[score_input, duration_slider, tuning_slider, soprano_check, alto_check, tenor_check, bass_check],
             outputs=[soprano_audio, alto_audio, tenor_audio, bass_audio, 
-                    soprano_audio, alto_audio, tenor_audio, bass_audio]
+                    soprano_audio, alto_audio, tenor_audio, bass_audio, generation_progress]
         )
         
         generate_master_btn.click(
