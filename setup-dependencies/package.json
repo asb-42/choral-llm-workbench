@@ -1,0 +1,35 @@
+{
+  "name": "setup-dependencies",
+  "description": "Automatically install and configure all dependencies for Choral LLM Workbench",
+  "main": "index.js",
+  "scripts": {
+    "setup": "node setup-dependencies.js",
+    "check": "node setup-dependencies.js --check-only",
+    "install": "node setup-dependencies.js --force-install",
+    "dev": "node setup-dependencies.js dev",
+    "frontend": "cd frontend && npm run setup",
+    "backend": "cd backend && npm run setup",
+    "build": "npm run build:backend && npm run build:frontend",
+    "clean": "rimraf dist node_modules backend/node_modules frontend/node_modules"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "inquirer": "^9.2.0",
+    "node-fetch": "^3.3.2",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "keywords": [
+    "choral",
+    "music",
+    "llm",
+    "dependencies",
+    "setup",
+    "installation"
+  ],
+  "author": "Choral LLM Workbench Team",
+  "license": "MIT"
+}
