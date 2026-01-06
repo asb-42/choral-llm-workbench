@@ -12,9 +12,86 @@ This app provides:
 import gradio as gr
 import tempfile
 import os
+import sys
+import subprocess
 from pathlib import Path
 from typing import Dict, Optional, Tuple, List, Any
-import base64
+
+# Dependency Management
+class DependencyManager:
+    """Manages automatic dependency checking and installation."""
+    
+    REQUIRED_PACKAGES = {
+        'music21': 'music21>=7.2.1',
+        'gradio': 'gradio>=3.40',
+        'matplotlib': 'matplotlib>=3.5.0',
+        'numpy': 'numpy>=1.25',
+        'scipy': 'scipy>=1.12',
+        'pygame': 'pygame>=2.6.1',
+        'pyfluidsynth': 'pyfluidsynth>=1.3.0'
+    }
+    
+    OPTIONAL_PACKAGES = {
+        'fluidsynth': 'fluidsynth>=0.3'
+    }
+    
+    @classmethod
+    def check_and_install_dependencies(cls):
+        """Check dependencies and install missing ones."""
+        print("🔍 Checking dependencies...")
+        
+        missing_required = []
+        missing_optional = []
+        
+        # Check required packages
+        for package, requirement in cls.REQUIRED_PACKAGES.items():
+            if not cls._check_package(package):
+                missing_required.append(requirement)
+        
+        # Check optional packages
+        for package, requirement in cls.OPTIONAL_PACKAGES.items():
+            if not cls._check_package(package):
+                missing_optional.append(requirement)
+        
+        # Install missing required packages
+        if missing_required:
+            print(f"📦 Installing missing required packages: {', '.join(missing_required)}")
+            cls._install_packages(missing_required)
+        
+        # Install missing optional packages
+        if missing_optional:
+            print(f"📦 Installing missing optional packages: {', '.join(missing_optional)}")
+            cls._install_packages(missing_optional)
+        
+        if not missing_required and not missing_optional:
+            print("✅ All dependencies already installed")
+        
+        print("🎯 Dependency check completed\n")
+    
+    @staticmethod
+    def _check_package(package_name):
+        """Check if a package is installed."""
+        try:
+            __import__(package_name)
+            return True
+        except ImportError:
+            return False
+    
+    @staticmethod
+    def _install_packages(packages):
+        """Install packages using pip."""
+        for package in packages:
+            try:
+                print(f"  Installing {package}...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+                print(f"  ✅ {package} installed successfully")
+            except subprocess.CalledProcessError as e:
+                print(f"  ❌ Failed to install {package}: {e}")
+                return False
+        return True
+
+# Check and install dependencies before importing
+DependencyManager.check_and_install_dependencies()
 
 # Core imports
 try:
@@ -490,25 +567,37 @@ if __name__ == "__main__":
         'Music21': MUSIC21_AVAILABLE,
         'FluidSynth': FLUIDSYNTH_AVAILABLE,
         'Matplotlib': MATPLOTLIB_AVAILABLE,
-        'SciPy': SCIPY_AVAILABLE
+        'SciPy': SCIPY_AVAILABLE,
+        'NumPy': SCIPY_AVAILABLE  # Use SCIPY_AVAILABLE as proxy for numpy
     }
     
-    print("📦 Dependency Status:")
+    print("📦 Final Dependency Status:")
+    all_available = True
     for dep, available in deps_status.items():
         status = "✅" if available else "❌"
         print(f"  {status} {dep}")
+        if not available:
+            all_available = False
     
-    if not all(deps_status.values()):
-        print("\n⚠️  Some dependencies are missing. Install with:")
-        print("  pip install music21 fluidsynth matplotlib scipy")
+    if not all_available:
+        print("\n❌ Critical dependencies missing. Automatic installation failed.")
+        print("Please install manually:")
+        print("  pip install music21 fluidsynth matplotlib scipy numpy")
+        sys.exit(1)
+    
+    print("\n✅ All dependencies satisfied!")
     
     # Create and launch interface
-    app = create_preview_interface()
-    print("🚀 Launching at http://127.0.0.1:7861")
-    
-    app.launch(
-        server_name="127.0.0.1",
-        server_port=7861,
-        share=False,
-        debug=False
-    )
+    try:
+        app = create_preview_interface()
+        print("🚀 Launching at http://127.0.0.1:7862")
+        
+        app.launch(
+            server_name="127.0.0.1",
+            server_port=7862,  # Use different port to avoid conflicts
+            share=False,
+            debug=False
+        )
+    except Exception as e:
+        print(f"\n❌ Failed to launch application: {e}")
+        sys.exit(1)
