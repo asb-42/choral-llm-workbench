@@ -48,6 +48,7 @@ The requirement to display MusicXML files as readable musical notation with real
 - [ ] Choose alternative UI framework (React/Vue + FastAPI)
 - [ ] Set up Web Audio API integration
 - [ ] Implement basic MusicXML parsing
+- [ ] **CRITICAL**: Fix pyfluidsynth or implement alternative audio synthesis
 
 **Phase 2: Score Rendering**  
 - [ ] Integrate LilyPond or VexFlow for notation
@@ -58,6 +59,13 @@ The requirement to display MusicXML files as readable musical notation with real
 - [ ] Web Audio API for playback with precise timing
 - [ ] Voice separation and individual playback
 - [ ] Real-time audio-visual synchronization
+- [ ] **ESSENTIAL**: Professional MIDI-to-WAV conversion pipeline
+
+**Phase 4: Audio Synthesis Overhaul**
+- [ ] Replace pygame sine wave placeholders with real instruments
+- [ ] Implement custom MIDI parser and synthesizer
+- [ ] Add multi-instrument support and soundfont integration
+- [ ] Real-time audio processing and effects
 
 ---
 
@@ -76,12 +84,152 @@ The requirement to display MusicXML files as readable musical notation with real
 
 ---
 
-## Other Technical Debt
+## Audio Generation Technical Issues
 
-### Audio Generation Dependencies
-- **FluidSynth Integration**: Complex setup requiring system soundfonts
-- **MIDI Conversion**: Additional processing layer adds complexity
-- **Real-time Playback**: Limited by Gradio's static audio components
+### 🚫 Critical: pyfluidsynth Installation and Import Failures
+
+**Status:** COMPLETELY BROKEN - Unrecoverable with current installation methods  
+**Priority:** CRITICAL - Blocks professional audio synthesis  
+**Impact:** No real MIDI-to-WAV conversion capability
+
+#### Problem Description
+The `pyfluidsynth` library, despite being installable via pip, fails to import at runtime, making it completely unusable for audio generation.
+
+#### Technical Root Causes
+
+**Installation Issues:**
+```bash
+# Installation appears successful
+pip install pyfluidsynth>=1.3.0
+# Successfully installed pyfluidsynth-1.3.4
+
+# But import fails consistently
+python -c "import pyfluidsynth"
+# ModuleNotFoundError: No module named 'pyfluidsynth'
+```
+
+**Package Installation Problems:**
+- **Incorrect directory structure**: Package installs as single `.py` file instead of proper module
+- **Missing dependencies**: System-level FluidSynth library required but not properly linked
+- **Python version incompatibility**: Package may not support Python 3.12 properly
+- **Platform-specific issues**: Linux binary dependencies missing or incompatible
+
+**Debugging Evidence:**
+```
+# Package appears installed
+pip show pyfluidsynth
+# Name: pyfluidsynth
+# Version: 1.3.4
+# Location: /venv/lib/python3.12/site-packages
+
+# But module directory doesn't exist
+ls venv/lib/python3.12/site-packages/pyfluidsynth
+# ls: cannot access 'pyfluidsynth': No such file or directory
+
+# Only shows as single Python file
+ls venv/lib/python3.12/site-packages/ | grep fluid
+# fluidsynth.py          (Wrong! Should be directory)
+# pyfluidsynth-1.3.4.dist-info
+```
+
+#### Failed Resolution Attempts
+
+**Attempt 1: Clean Reinstall**
+```bash
+pip uninstall pyfluidsynth -y
+pip install pyfluidsynth>=1.3.0
+# Result: Same import failure
+```
+
+**Attempt 2: System Dependencies**
+```bash
+# Install system FluidSynth
+sudo apt-get install fluidsynth libfluidsynth-dev
+# Result: No improvement in Python import
+```
+
+**Attempt 3: Manual Installation**
+```bash
+# Download and install from source
+# Result: Complex build process, still fails to import
+```
+
+**Attempt 4: Alternative Versions**
+```bash
+pip install pyfluidsynth==1.3.0
+pip install pyfluidsynth==1.2.5
+pip install pyfluidsynth==1.1.0
+# Result: All versions fail to import
+```
+
+#### Current Working Solution: pygame Audio Workaround
+
+**Implementation:**
+- Use `pygame.mixer` for audio synthesis
+- Generate sine wave placeholders for each voice
+- Different frequencies per voice (C5, A4, F4, C4)
+- Mix voices for master audio generation
+
+**Advantages:**
+- ✅ **Works reliably** across platforms
+- ✅ **Proper package installation**
+- ✅ **Simple dependency management**
+- ✅ **Clear audio feedback**
+
+**Limitations:**
+- ❌ **Sine wave placeholders** instead of real instruments
+- ❌ **No real MIDI conversion** (only creates MIDI files)
+- ❌ **Limited sound quality** (basic synthesis)
+- ❌ **No instrument variety** (single tone per voice)
+
+#### Technical Workaround Implementation
+
+```python
+# Instead of broken pyfluidsynth:
+import pyfluidsynth  # FAILS
+
+# Use working pygame:
+import pygame.mixer
+pygame.mixer.init(frequency=22050, size=-16, channels=2)
+
+# Generate sine wave for each voice
+def generate_voice_audio(voice_index, duration):
+    frequencies = [523, 440, 349, 262]  # C5, A4, F4, C4
+    freq = frequencies[voice_index % 4]
+    # Generate sine wave...
+    return audio_data
+```
+
+### 🎯 Required Long-term Solutions
+
+**Option 1: Fix pyfluidsynth Installation**
+- Research proper system dependencies for Python 3.12
+- Test alternative installation methods (conda, system packages)
+- Contact package maintainers about import issues
+
+**Option 2: Alternative MIDI Synthesis**
+- Implement custom MIDI parser and synthesizer
+- Use Web Audio API in future web interface
+- Integrate with other audio libraries (mingus, pretty_midi)
+
+**Option 3: Professional Audio Framework**
+- Use JUCE or similar professional audio framework
+- Implement custom audio synthesis pipeline
+- Build custom MIDI-to-WAV converter
+
+---
+
+## Audio Generation Dependencies (Updated)
+
+### Current Status
+- **pyfluidsynth**: COMPLETELY BROKEN (see above)
+- **pygame.mixer**: WORKING (current workaround)
+- **MIDI Conversion**: Partially working (files created, conversion blocked)
+
+### Migration Requirements
+- **Phase 1**: Fix pyfluidsynth or implement alternative
+- **Phase 2**: Professional audio synthesis pipeline
+- **Phase 3**: Real-time audio processing capabilities
 
 ### Performance Considerations
 - Large score files cause memory issues
