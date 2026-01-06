@@ -8,7 +8,7 @@ and generates chord suggestions using a Dummy LLM. MIDI/WAV preview is included.
 import gradio as gr
 from copy import deepcopy
 from core.score import load_musicxml, write_musicxml, replace_chord_in_measure
-from core.editor.dummy_llm import DummyLLM
+from core.llm.adapter import LLMAdapter
 from core.audio import score_to_midi, render_audio_with_tuning, render_score_audio
 from core.config import get_config
 from core.i18n import _
@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 
 # Initialize dummy LLM
-llm = DummyLLM()
+llm = LLMAdapter(model_name='mistral-7b')
 
 # Helper function for multi-voice harmonization
 def harmonize_multi_voice(score_file, prompts, base_tuning=None):

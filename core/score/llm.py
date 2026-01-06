@@ -7,5 +7,9 @@ def apply_llm_chords_to_measures(score, llm_results):
         {'S': {'measure': 1, 'root': 'C', 'quality': 'major'}, ...}
     """
     for voice, data in llm_results.items():
-        replace_chords_in_measures(score, [data])
+        measure = data.get("measure")
+        root = data.get("root")
+        quality = data.get("quality", "major")
+        if measure is not None and root is not None:
+            replace_chords_in_measures(score, {measure: (root, quality)})
     return score
