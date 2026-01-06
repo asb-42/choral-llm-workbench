@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
 import threading
 import time
+from io import BytesIO
 
 try:
     from music21 import converter, stream, note, chord, meter
