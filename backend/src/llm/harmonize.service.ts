@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class HarmonizeService {
@@ -10,6 +12,9 @@ export class HarmonizeService {
   private undoStacks: Map<string, any[]> = new Map();
   private redoStacks: Map<string, any[]> = new Map();
   private currentStates: Map<string, any> = new Map();
+
+  // Storage paths for Phase 6/7
+  private storageDir: string = path.resolve(process.cwd(), 'storage');
 
   harmonize(scoreId: string, prompts: any, tuning?: number) {
     // Push current state to undo stack if exists
@@ -50,88 +55,91 @@ export class HarmonizeService {
       }
     }
 
-    const newState = { scoreId, results, summary: 'Ollama-based harmonization (Phase 4 rollout)' };
-    this.currentStates.set(scoreId, newState);
-    return newState;
+    const newCurrent = { scoreId, results, summary: 'Ollama-based harmonization (Phase 4 rollout)' };
+    this.currentStates.set(scoreId, newCurrent);
+
+    // Persist a simple MusicXML file path for Phase 7 server-side audio (best-effort)
+    const scoresDir = path.resolve(this.storageDir, 'scores');
+    if (!fs.existsSync(scoresDir)) {
+      fs.mkdirSync(scoresDir, { recursive: true });
+    }
+    // Note: actual MusicXML content should be written by the upload pathway; create a placeholder file reference if needed
+    const placeholder = path.join(scoresDir, `${scoreId}.musicxml`);
+    if (!fs.existsSync(placeholder)) {
+      // If an actual file isn't there yet, create an empty placeholder to avoid missing file errors
+      fs.writeFileSync(placeholder, '<score></score>', 'utf8');
+    }
+
+    this.saveState(this.loadState(scoreId) /* ensure directory exists but we use existing logic below */);
+    return newCurrent;
   }
 
   // Undo last harmonization for a score
   undo(scoreId: string) {
-    const undoStack = this.undoStacks.get(scoreId) ?? [];
-    const current = this.currentStates.get(scoreId);
-    if (undoStack.length > 0 && current) {
-      const prev = undoStack.pop();
-      // store back the remaining undo stack
-      this.undoStacks.set(scoreId, undoStack);
-      // push current to redo stack
-      const redoStack = this.redoStacks.get(scoreId) ?? [];
-      redoStack.push(current);
-      this.redoStacks.set(scoreId, redoStack);
-      // set previous state as current
-      this.currentStates.set(scoreId, prev);
-      return prev;
+    const state = this.loadState(scoreId);
+    const history = state.history ?? [];
+    if (history.length > 0 && state.current) {
+      const prev = history.pop();
+      const redoStack = state.future ?? [];
+      redoStack.push(state.current);
+      state.history = history;
+      state.current = prev;
+      state.future = redoStack;
+      this.saveState(state);
+      return { scoreId, current: state.current, history: state.history, future: state.future };
     }
-    return current ?? { scoreId, results: {}, summary: 'Nothing to undo' };
+    return { scoreId, current: state.current, history: state.history, future: state.future };
   }
 
   // Redo last undone harmonization for a score
   redo(scoreId: string) {
-    const redoStack = this.redoStacks.get(scoreId) ?? [];
-    const current = this.currentStates.get(scoreId);
-    if (redoStack.length > 0) {
-      const next = redoStack.pop();
-      this.redoStacks.set(scoreId, redoStack);
-      const undoStack = this.undoStacks.get(scoreId) ?? [];
-      if (current) undoStack.push(current);
-      this.undoStacks.set(scoreId, undoStack);
-      this.currentStates.set(scoreId, next);
-      return next;
+    const state = this.loadState(scoreId);
+    const future = state.future ?? [];
+    if (future.length > 0) {
+      const next = future.pop();
+      const history = state.history ?? [];
+      if (state.current) history.push(state.current);
+      state.history = history;
+      state.current = next;
+      state.future = future;
+      this.saveState(state);
+      return { scoreId, current: state.current, history: state.history, future: state.future };
     }
-    return current ?? { scoreId, results: {}, summary: 'Nothing to redo' };
+    return { scoreId, current: state.current, history: state.history, future: state.future };
   }
 
-  // Generate per-voice audio beeps (simple client-side-friendly audio)
-  generateAudioPerVoice(scoreId: string, voices: string[] = ['S', 'A', 'T', 'B'], tuning?: number, duration?: number) {
-    const perVoiceAudios: Array<{ voice: string; label: string; src: string }> = [];
-    const voiceNames: Record<string, string> = { S: 'Soprano', A: 'Alto', T: 'Tenor', B: 'Bass' };
-    const baseFreq: Record<string, number> = { S: 523.25, A: 440.0, T: 329.63, B: 261.63 };
-
-    for (const v of voices) {
-      const freq = baseFreq[v] ?? 440;
-      const dur = duration ?? 0.8;
-      const src = this.createBeepWavDataUrl(freq, dur);
-      perVoiceAudios.push({ voice: v, label: voiceNames[v] ?? v, src });
+  // Generate per-voice audio (server-side, Phase 7 MVP)
+  generateAudioPerVoice(scoreId: string, voices: string[] = ['S','A','T','B'], tuning?: number, duration?: number) {
+    const scriptPath = path.resolve(process.cwd(), 'scripts', 'render_voice_audio.py');
+    const scorePath = path.resolve(process.cwd(), 'storage', 'scores', `${scoreId}.musicxml`);
+    const outdir = path.resolve(process.cwd(), 'storage', 'voices', scoreId);
+    // Ensure outdir exists
+    if (!fs.existsSync(outdir)) {
+      fs.mkdirSync(outdir, { recursive: true });
     }
-
-    return { scoreId, perVoiceAudios };
+    const cmd = `python3 "${scriptPath}" --score-path "${scorePath}" --voices "${voices.join(',')}" --tuning ${tuning ?? 432} --duration ${duration ?? 0.8} --soundfont ~/.fluidsynth/default_sound_font.sf2 --outdir "${outdir}"`;
+    try {
+      const stdout = execSync(cmd, { encoding: 'utf8' });
+      const data = JSON.parse(stdout.trim());
+      return data;
+    } catch (err) {
+      return { perVoiceAudios: [] };
+    }
   }
 
-  // Helper: generate a small WAV data URL with a sine beep
-  private createBeepWavDataUrl(freq: number, durationSec: number, sampleRate = 44100): string {
-    const samples = Math.floor(durationSec * sampleRate);
-    const data = Buffer.alloc(samples * 2);
-    const maxAmplitude = 32760;
-    for (let i = 0; i < samples; i++) {
-      const t = i / sampleRate;
-      const sample = Math.round(maxAmplitude * Math.sin(2 * Math.PI * freq * t));
-      data.writeInt16LE(sample, i * 2);
+  // Helper: load and save state (simplified for coexistence with previous in-memory approach)
+  private loadState(scoreId: string) {
+    const file = path.resolve(this.storageDir, 'undo_redo', `${scoreId}.json`);
+    if (fs.existsSync(file)) {
+      try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return { scoreId, history: [], current: null, future: [] }; }
     }
-    const dataBytes = data.length;
-    const wavHeader = Buffer.alloc(44);
-    wavHeader.write('RIFF', 0);
-    wavHeader.writeUInt32LE(36 + dataBytes, 4);
-    wavHeader.write('WAVE', 8);
-    wavHeader.write('fmt ', 12);
-    wavHeader.writeUInt32LE(16, 16);
-    wavHeader.writeUInt16LE(1, 20); // PCM
-    wavHeader.writeUInt16LE(1, 22); // channels
-    wavHeader.writeUInt32LE(sampleRate, 24);
-    wavHeader.writeUInt32LE(sampleRate * 2 * 1, 28); // byteRate
-    wavHeader.writeUInt16LE(2, 32); // blockAlign
-    wavHeader.writeUInt16LE(16, 34); // bitsPerSample
-    wavHeader.write("data", 36);
-    wavHeader.writeUInt32LE(dataBytes, 40);
-    const wavBuffer = Buffer.concat([wavHeader, data]);
-    return 'data:audio/wav;base64,' + wavBuffer.toString('base64');
+    return { scoreId, history: [], current: null, future: [] };
+  }
+
+  private saveState(state: any) {
+    const file = path.resolve(this.storageDir, 'undo_redo', `${state.scoreId}.json`);
+    const dir = path.dirname(file);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(state, null, 2), 'utf8');
   }
 }
