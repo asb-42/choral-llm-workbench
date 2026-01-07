@@ -9,7 +9,7 @@ Professional choral music analysis application with local LLM integration, real-
 - **Framework**: NestJS with TypeScript
 - **AI Integration**: Local Ollama for music analysis
 - **Audio Processing**: Web Audio API + Tone.js
-- **MusicXML Parsing**: musicxml-json with TypeScript support
+- **MusicXML Parsing**: xml2js with TypeScript support
 - **Real-time Features**: WebSockets for live updates
 - **API**: RESTful + WebSocket endpoints
 
@@ -181,16 +181,8 @@ npm run lint            # Lint all code
 @Injectable()
 export class OllamaService {
   private readonly ollamaUrl = 'http://localhost:11434';
-  
   async generateHarmony(score: ScoreData): Promise<HarmonyResult> {
-    const response = await fetch(`${this.ollamaUrl}/api/generate`, {
-      method: 'POST',
-      body: JSON.stringify({
-        model: 'llama3.1',
-        prompt: this.buildHarmonyPrompt(score),
-        stream: false
-      })
-    });
+    const response = await fetch(`${this.ollamaUrl}/api/generate`, { method: 'POST', body: JSON.stringify({ model: 'llama3.1', prompt: this.buildHarmonyPrompt(score), stream: false }) });
     return response.json();
   }
 }
@@ -198,128 +190,4 @@ export class OllamaService {
 
 ### Available Models
 - **llama3.1** - General purpose music analysis
-- **musicgen** - Specialized music generation
-- **custom-trained** - Domain-specific models
-
-## 📱 Deployment
-
-### Desktop App (Pinokio)
-```json
-{
-  "name": "choral-llm-workbench",
-  "description": "AI-powered choral music analysis",
-  "version": "1.0.0",
-  "pin": "node/choral-workbench",
-  "icon": "./icon.png",
-  "shortcuts": [
-    {
-      "name": "Launch Choral Workbench",
-      "cmd": ["node", "dist/main.js"]
-    }
-  ]
-}
 ```
-
-### Web Deployment
-```bash
-# Production build
-npm run build
-
-# Docker container
-docker build -t choral-workbench .
-docker run -p 3000:3000 choral-workbench
-
-# Static hosting
-npm run build:preview  # Built to dist/
-```
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd backend
-npm run test                    # Unit tests
-npm run test:e2e               # End-to-end tests
-npm run test:coverage          # Coverage report
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm run test:unit               # Component tests
-npm run test:e2e               # End-to-end tests
-npm run test:accessibility      # Accessibility tests
-```
-
-### Integration Tests
-```bash
-npm run test:integration          # Full stack tests
-npm run test:performance        # Performance benchmarks
-```
-
-## 📚 Documentation
-
-### API Documentation
-- OpenAPI/Swagger at `http://localhost:3000/api`
-- TypeScript interfaces in `/docs/api`
-- WebSocket event documentation
-
-### Component Documentation
-- Storybook at `http://localhost:5173`
-- Component props and events
-- Usage examples and guidelines
-
-## 🔄 Migration from Gradio
-
-### Key Differences
-| Feature | Gradio | NestJS/Vue |
-|---------|---------|-------------|
-| Audio Processing | ❌ Static files | ✅ Real-time synthesis |
-| UI Framework | ❌ Limited components | ✅ Full Vue ecosystem |
-| LLM Integration | ❌ External APIs | ✅ Local Ollama |
-| Real-time Updates | ❌ Request-response | ✅ WebSocket support |
-| Performance | ❌ Heavy loading | ✅ Optimized rendering |
-
-### Migration Benefits
-- 🚀 **Performance**: Real-time audio synthesis
-- 🎵 **Professional Audio**: Full Web Audio API support
-- 🤖 **Local AI**: Ollama integration without cloud
-- 📱 **Desktop App**: Pinokio one-click installer
-- 🔄 **Real-time**: Live score and audio synchronization
-
-## 🚀 Production Deployment
-
-### Requirements
-- Node.js 18+ 
-- 4GB RAM minimum
-- Ollama (optional for AI features)
-
-### Scaling
-- **Horizontal**: Multiple server instances
-- **Load Balancing**: Nginx/HAProxy
-- **Caching**: Redis for session storage
-- **CDN**: Static asset delivery
-
-## 📄 License
-
-- **Backend**: MIT License
-- **Frontend**: MIT License  
-- **Audio Libraries**: Open source licenses
-- **Models**: Model-specific licenses
-
-## 🤝 Contributing
-
-1. Fork repository
-2. Create feature branch
-3. Make changes with tests
-4. Submit pull request
-
-### Development Guidelines
-- TypeScript for type safety
-- ESLint + Prettier for code quality
-- Unit tests for all features
-- Documentation for new features
-
----
-
-*This architecture solves all Gradio limitations and provides professional-grade audio processing with local AI integration.*
