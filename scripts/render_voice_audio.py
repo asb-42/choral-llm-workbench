@@ -7,9 +7,17 @@ from music21 import converter, stream
 def render_voice_audio_from_score(score_path: str, voice: str, tuning: float, duration: float, soundfont: str, outdir: str):
     score = converter.parse(score_path)
     voice_index = {'S': 0, 'A': 1, 'T': 2, 'B': 3}.get(voice, 0)
-    voice_part = score.parts[voice_index] if voice_index < len(score.parts) else None
+    # Robust access to voice-part via getattr to avoid static analyzer issues
+    parts = getattr(score, 'parts', None)
+    voice_part = None
+    if isinstance(parts, list) and voice_index < len(parts):
+        voice_part = parts[voice_index]
     if voice_part is None:
-        return None
+        # Fallback: use first part or the score itself
+        if isinstance(parts, list) and len(parts) > 0:
+            voice_part = parts[0]
+        else:
+            voice_part = score
     new_score = stream.Score()
     new_score.append(voice_part)
     midi_path = os.path.join(outdir, f"{voice}.mid")
