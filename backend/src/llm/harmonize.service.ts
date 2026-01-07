@@ -5,19 +5,23 @@ import * as path from 'path';
 
 @Injectable()
 export class HarmonizeService {
-  // Default model for local LLM (Ollama)
   private defaultModel: string = 'mistral-7b';
+  private storageDir: string = path.resolve(process.cwd(), 'storage');
 
-  // In-memory undo/redo state per score
+  // In-memory undo/redo state per score (Phase 5/6) plus persistent on-disk for Phase 7+
   private undoStacks: Map<string, any[]> = new Map();
   private redoStacks: Map<string, any[]> = new Map();
   private currentStates: Map<string, any> = new Map();
 
-  // Storage paths for Phase 6/7
-  private storageDir: string = path.resolve(process.cwd(), 'storage');
+  constructor() {
+    // Ensure storage dirs exist for onboarding
+    const dirs = [this.storageDir, path.resolve(this.storageDir, 'undo_redo'), path.resolve(this.storageDir, 'scores'), path.resolve(this.storageDir, 'voices')];
+    dirs.forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
+  }
 
+  // Harmonize for a score (Phase 7 MVP)
   harmonize(scoreId: string, prompts: any, tuning?: number) {
-    // Push current state to undo stack if exists
+    // Push current state to undo list
     const current = this.currentStates.get(scoreId);
     if (current) {
       const arr = this.undoStacks.get(scoreId) ?? [];
@@ -29,13 +33,11 @@ export class HarmonizeService {
 
     const voices = ['S', 'A', 'T', 'B'];
     const results: any = {};
-
     for (const voice of voices) {
       try {
         const prompt = prompts?.[voice] ?? '';
         const input = JSON.stringify({ prompt, voice, scoreId });
-        const model = this.defaultModel;
-        const stdout = execSync(`ollama eval ${model} --json '${input}'`, {
+        const stdout = execSync(`ollama eval ${this.defaultModel} --json '${input}'`, {
           encoding: 'utf8',
           stdio: 'pipe',
         });
@@ -50,48 +52,51 @@ export class HarmonizeService {
           results[voice] = { measure: 1, root: data?.root ?? 'C', quality: data?.quality ?? 'major' };
         }
       } catch (err) {
-        // Fallback safely
         results[voice] = { measure: 1, root: 'C', quality: 'major' };
       }
     }
 
-    const newCurrent = { scoreId, results, summary: 'Ollama-based harmonization (Phase 4 rollout)' };
+    // Compute a simple default measure order from the results
+    const maxMeasure = Object.values(results).reduce((m, v) => Math.max(m, v?.measure ?? 0), 0);
+    const order = maxMeasure > 0 ? Array.from({ length: maxMeasure }, (_, i) => i + 1) : [1];
+
+    const newCurrent = { scoreId, results, order, summary: 'Ollama-based harmonization (Phase 7 MVP)' };
     this.currentStates.set(scoreId, newCurrent);
 
-    // Persist a simple MusicXML file path for Phase 7 server-side audio (best-effort)
+    // Persist to disk for Phase 7: scores placeholder (actual MusicXML updates happen on file upload in storage/scores)
     const scoresDir = path.resolve(this.storageDir, 'scores');
-    if (!fs.existsSync(scoresDir)) {
-      fs.mkdirSync(scoresDir, { recursive: true });
-    }
-    // Note: actual MusicXML content should be written by the upload pathway; create a placeholder file reference if needed
+    if (!fs.existsSync(scoresDir)) fs.mkdirSync(scoresDir, { recursive: true });
     const placeholder = path.join(scoresDir, `${scoreId}.musicxml`);
     if (!fs.existsSync(placeholder)) {
-      // If an actual file isn't there yet, create an empty placeholder to avoid missing file errors
       fs.writeFileSync(placeholder, '<score></score>', 'utf8');
     }
 
-    this.saveState(this.loadState(scoreId) /* ensure directory exists but we use existing logic below */);
-    return newCurrent;
+    // Persist full state to undo_redo json for resiliency
+    const state = { scoreId, history: [], current: newCurrent, future: [] };
+    const undoPath = path.resolve(this.storageDir, 'undo_redo', `${scoreId}.json`);
+    fs.writeFileSync(undoPath, JSON.stringify(state, null, 2), 'utf8');
+
+    return { scoreId, current: newCurrent, history: state.history, future: state.future };
   }
 
-  // Undo last harmonization for a score
+  // Undo last harmonization
   undo(scoreId: string) {
     const state = this.loadState(scoreId);
     const history = state.history ?? [];
     if (history.length > 0 && state.current) {
       const prev = history.pop();
-      const redoStack = state.future ?? [];
-      redoStack.push(state.current);
+      const future = state.future ?? [];
+      future.push(state.current);
       state.history = history;
       state.current = prev;
-      state.future = redoStack;
+      state.future = future;
       this.saveState(state);
       return { scoreId, current: state.current, history: state.history, future: state.future };
     }
     return { scoreId, current: state.current, history: state.history, future: state.future };
   }
 
-  // Redo last undone harmonization for a score
+  // Redo last undone
   redo(scoreId: string) {
     const state = this.loadState(scoreId);
     const future = state.future ?? [];
@@ -108,15 +113,12 @@ export class HarmonizeService {
     return { scoreId, current: state.current, history: state.history, future: state.future };
   }
 
-  // Generate per-voice audio (server-side, Phase 7 MVP)
+  // Generate per-voice audio (Phase 7 MVP) using script
   generateAudioPerVoice(scoreId: string, voices: string[] = ['S','A','T','B'], tuning?: number, duration?: number) {
     const scriptPath = path.resolve(process.cwd(), 'scripts', 'render_voice_audio.py');
     const scorePath = path.resolve(process.cwd(), 'storage', 'scores', `${scoreId}.musicxml`);
     const outdir = path.resolve(process.cwd(), 'storage', 'voices', scoreId);
-    // Ensure outdir exists
-    if (!fs.existsSync(outdir)) {
-      fs.mkdirSync(outdir, { recursive: true });
-    }
+    if (!fs.existsSync(outdir)) fs.mkdirSync(outdir, { recursive: true });
     const cmd = `python3 "${scriptPath}" --score-path "${scorePath}" --voices "${voices.join(',')}" --tuning ${tuning ?? 432} --duration ${duration ?? 0.8} --soundfont ~/.fluidsynth/default_sound_font.sf2 --outdir "${outdir}"`;
     try {
       const stdout = execSync(cmd, { encoding: 'utf8' });
@@ -127,7 +129,30 @@ export class HarmonizeService {
     }
   }
 
-  // Helper: load and save state (simplified for coexistence with previous in-memory approach)
+  // Preview current score order (live score preview)
+  preview(scoreId: string) {
+    const state = this.loadState(scoreId);
+    const current = state.current ?? { scoreId, results: {}, order: [], summary: '' };
+    return {
+      scoreId: scoreId,
+      order: current.order ?? [],
+      measures: (current.order ?? []).length,
+      current: current
+    };
+  }
+
+  // Reorder measures (Drag-and-Drop)
+  reorderMeasures(scoreId: string, newOrder: number[]) {
+    const state = this.loadState(scoreId);
+    const current = state.current ?? { scoreId, results: {}, order: newOrder, summary: 'Reordered' };
+    current.order = newOrder;
+    state.current = current;
+    // Persist
+    this.saveState(state);
+    return { scoreId, current, history: state.history, future: state.future };
+  }
+
+  // Helpers: persistent load/save
   private loadState(scoreId: string) {
     const file = path.resolve(this.storageDir, 'undo_redo', `${scoreId}.json`);
     if (fs.existsSync(file)) {
