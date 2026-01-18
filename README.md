@@ -1,10 +1,24 @@
-# Choral LLM Workbench
+# Choral Music Transformer
+
+**Deterministic choral music transformation engine** built on MusicXML and LLM technology.  
+Designed for professional choir conductors, arrangers, and composers.
+
+This tool enables:
+
+- **Polyphonic transformations**: SATB and additional accompaniment voices supported
+- **Complex rhythm handling**: irregular meters, polyrhythms, and precise note durations
+- **Harmonic reharmonization**: explicit harmony events with key context
+- **Transposition & style adaptation**: controlled, deterministic changes for professional workflows
+- **LLM-assisted workflow**: text-based representation (TLR) ensures explainability and reproducibility
+- **Roundtrip MusicXML support**: maintain original structure and musical correctness
+
+**Target Users:** Choir directors, arrangers, and composers who need deterministic, AI-assisted transformations while retaining full musical control.
+
+---
 
 ## Overview
 
-The **Choral LLM Workbench** is an experimental framework for exploring AI-assisted choral composition and harmony analysis. Its goal is to allow musicians, composers, and researchers to interactively harmonize, edit, and explore SATB (Soprano, Alto, Tenor, Bass) choral music using modular AI language models (LLMs) while maintaining fine-grained control over musical structures.
-
-The workbench combines traditional music representation via **MusicXML** with AI-driven harmonization, reharmonization, and chord analysis.
+The **Choral Music Transformer** is a production-ready framework for deterministic choral music transformation. It combines traditional MusicXML representation with AI-driven transformations while maintaining strict musical correctness and professional workflow compatibility.
 
 ---
 
