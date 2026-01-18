@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 from ikr_light import Score, Part, Voice, Measure, Event, NoteEvent, HarmonyEvent
 from fractions import Fraction
 

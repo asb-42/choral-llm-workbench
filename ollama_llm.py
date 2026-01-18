@@ -7,7 +7,7 @@ from tlr_converter import TLRConverter
 class OllamaLLM:
     """Interface to Ollama LLM for musical transformations"""
     
-    def __init__(self, model_name: str = "llama3.2", base_url: str = "http://localhost:11434"):
+    def __init__(self, model_name: str = "llama3:latest", base_url: str = "http://localhost:11434"):
         self.model_name = model_name
         self.base_url = base_url
         self.tlr_converter = TLRConverter()

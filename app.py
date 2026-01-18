@@ -282,7 +282,7 @@ class ChoralWorkbench:
         except Exception as e:
             return None
     
-def create_interface(self):
+    def create_interface(self):
         """Create Gradio interface"""
         with gr.Blocks(title="Choral LLM Workbench") as interface:
             gr.Markdown("# Choral LLM Workbench")
@@ -540,17 +540,10 @@ def create_interface(self):
                 fn=self.explain_music,
                 inputs=[question_input],
                 outputs=[explanation_status]
-            )
-            
-            def export_and_show_download(tlr_text):
-                output_path = self.export_musicxml(tlr_text)
-                if output_path:
-                    return gr.File(value=output_path, visible=True)
-                else:
-                    return gr.File(visible=False)
+)
             
             export_btn.click(
-                fn=export_and_show_download,
+                fn=lambda tlr_text: gr.File(value=self.export_musicxml(tlr_text), visible=True) if self.export_musicxml(tlr_text) else gr.File(visible=False),
                 inputs=[tlr_display],
                 outputs=[download_file]
             )
@@ -558,7 +551,7 @@ def create_interface(self):
         return interface
     
     def launch(self, **kwargs):
-        """Launch the Gradio interface"""
+        """Launch Gradio interface"""
         interface = self.create_interface()
         interface.launch(**kwargs)
 
@@ -574,7 +567,7 @@ def main():
     # Launch interface
     app.launch(
         server_name="0.0.0.0",
-        server_port=7860,
+        server_port=7861,
         share=False
     )
 
