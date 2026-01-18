@@ -264,8 +264,19 @@ class ChoralWorkbench:
             
             return display_tlr, "Successfully transformed and validated music."
             
+        except RuntimeError as e:
+            error_msg = str(e)
+            
+            # Provide specific guidance for common issues
+            if "timeout" in error_msg.lower():
+                return tlr_text, f"⏱️ {error_msg}\n💡 Tip: Try a smaller model or reduce input complexity."
+            elif "connection" in error_msg.lower():
+                return tlr_text, f"🔌 {error_msg}\n💡 Tip: Check if Ollama is running on localhost:11434"
+            else:
+                return tlr_text, f"❌ {error_msg}"
+                
         except Exception as e:
-            return tlr_text, f"Error during transformation: {str(e)}"
+            return tlr_text, f"Unexpected error during transformation: {str(e)}"
     
     def export_musicxml(self, tlr_text: str) -> Optional[str]:
         """Export TLR to MusicXML for download"""

@@ -53,13 +53,17 @@ Instruction:
         }
         
         try:
-            response = requests.post(url, json=payload, timeout=120)
+            response = requests.post(url, json=payload, timeout=300)  # Increased timeout for CPU inference
             response.raise_for_status()
             
             result = response.json()
             return result.get("response", "")
             
+        except requests.exceptions.Timeout as e:
+            raise RuntimeError(f"LLM inference timeout after 300 seconds. Consider using a smaller model or upgrading to GPU acceleration.")
         except requests.exceptions.RequestException as e:
+            if "timeout" in str(e).lower():
+                raise RuntimeError(f"LLM inference timeout. Try reducing input complexity or use a smaller model.")
             raise RuntimeError(f"Failed to call Ollama API: {e}")
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Failed to parse Ollama response: {e}")
