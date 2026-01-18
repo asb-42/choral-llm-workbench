@@ -182,7 +182,7 @@ class ChoralWorkbench:
                     # Skip formatting warnings that don't break functionality
                     if not any(keyword in error.lower() for keyword in [
                         'invalid line format',
-                        'meASURE without voice',
+                        'measure without voice',
                         'figured bass',
                         'parenthetical'
                     ]):
