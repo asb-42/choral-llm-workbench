@@ -58,8 +58,9 @@ class EventIndexer:
                         event_id = f"event_{self.next_id}"
                         self.next_id += 1
                         
-                        # Store mappings
-                        self.event_to_id[event] = event_id
+                        # Store mappings - use event string representation as key since objects aren't hashable
+                        event_key = str(event)
+                        self.event_to_id[event_key] = event_id
                         self.id_to_event[event_id] = event
                         
                         # Add to index structure

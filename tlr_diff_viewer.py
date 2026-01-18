@@ -16,14 +16,19 @@ class TLTDiffViewer:
             'reset': '\033[0m'        # Reset
         }
         
-        # For HTML output
+        # For HTML output - improved contrast
         self.html_colors = {
-            'removed': '#ffcccc',
-            'added': '#ccffcc', 
-            'changed': '#ffffcc',
-            'measure_header': '#ccccff',
-            'voice_header': '#ffccff',
-            'unchanged': '#ffffff'
+            'removed': '#ffebee',      # Light red background
+            'added': '#e8f5e8',       # Light green background  
+            'changed': '#fff3e0',       # Light orange background
+            'measure_header': '#e3f2fd', # Light blue background
+            'voice_header': '#fce4ec',    # Light pink background
+            'unchanged': '#fafafa',      # Very light gray background
+            'text_removed': '#d32f2f',    # Dark red text
+            'text_added': '#2e7d32',      # Dark green text
+            'text_changed': '#f57c00',    # Dark orange text
+            'text_header': '#1565c0',     # Dark blue text
+            'text_normal': '#212121'       # Dark gray text
         }
     
     def create_diff(self, original_tlr: str, transformed_tlr: str, 
@@ -113,16 +118,16 @@ class TLTDiffViewer:
         html_parts.append("<title>TLR Diff Viewer</title>")
         html_parts.append("<style>")
         html_parts.append("""
-            body { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; margin: 20px; }
-            .diff-container { border: 1px solid #ccc; border-radius: 5px; padding: 15px; }
-            .measure-header { background-color: #ccccff; font-weight: bold; padding: 5px; margin-top: 10px; border-radius: 3px; }
-            .voice-header { background-color: #ffccff; padding: 3px 10px; margin: 5px 0; border-radius: 3px; }
-            .line-added { background-color: #ccffcc; }
-            .line-removed { background-color: #ffcccc; text-decoration: line-through; }
-            .line-changed { background-color: #ffffcc; }
-            .line-unchanged { background-color: #ffffff; }
-            .line-number { color: #666; width: 30px; display: inline-block; }
-            .summary { background-color: #f0f0f0; padding: 10px; border-radius: 3px; margin-top: 20px; }
+            body { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; margin: 20px; background-color: #fafafa; }
+            .diff-container { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .measure-header { background-color: #e3f2fd; color: #1565c0; font-weight: bold; padding: 8px 12px; margin-top: 15px; border-radius: 4px; border-left: 4px solid #1976d2; }
+            .voice-header { background-color: #fce4ec; color: #880e4f; padding: 6px 12px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #c2185b; }
+            .line-added { background-color: #e8f5e8; color: #2e7d32; padding: 2px 8px; border-left: 3px solid #4caf50; }
+            .line-removed { background-color: #ffebee; color: #d32f2f; text-decoration: line-through; padding: 2px 8px; border-left: 3px solid #f44336; }
+            .line-changed { background-color: #fff3e0; color: #f57c00; padding: 2px 8px; border-left: 3px solid #ff9800; }
+            .line-unchanged { background-color: #fafafa; color: #212121; padding: 2px 8px; }
+            .line-number { color: #757575; width: 40px; display: inline-block; font-weight: bold; }
+            .summary { background-color: #f5f5f5; color: #424242; padding: 15px; border-radius: 6px; margin-top: 20px; border: 1px solid #e0e0e0; }
         """)
         html_parts.append("</style>")
         html_parts.append("</head>")
@@ -178,7 +183,7 @@ class TLTDiffViewer:
         
         return "\n".join(diff)
     
-    def _group_lines_by_structure(self, diff_lines: List[str]) -> List[Tuple[str, str, Optional[int], Optional[int]]]:
+    def _group_lines_by_structure(self, diff_lines: List[str]) -> List[Tuple[str, str, Optional[int], Optional[str]]]:
         """Group diff lines by measure and voice structure"""
         grouped = []
         current_measure = None
@@ -211,7 +216,7 @@ class TLTDiffViewer:
         
         return grouped
     
-    def _extract_structure_from_line(self, line: str) -> Tuple[Optional[int], Optional[int]]:
+    def _extract_structure_from_line(self, line: str) -> Tuple[Optional[int], Optional[str]]:
         """Extract measure and voice numbers from TLR line"""
         measure = None
         voice = None

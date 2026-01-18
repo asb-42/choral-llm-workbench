@@ -76,3 +76,14 @@ Instruction:
             return response.status_code == 200
         except requests.exceptions.RequestException:
             return False
+    
+    def get_available_models(self) -> List[dict]:
+        """Get list of available models from Ollama"""
+        try:
+            url = f"{self.base_url}/api/tags"
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            result = response.json()
+            return result.get("models", [])
+        except requests.exceptions.RequestException:
+            return []

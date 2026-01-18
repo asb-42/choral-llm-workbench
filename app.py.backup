@@ -29,14 +29,6 @@ class ChoralWorkbench:
         self.transformation_validator = TransformationValidator()
         self.diff_viewer = TLTDiffViewer()
         
-        # Initialize Ollama models
-        self.available_models = []
-        if self.llm.check_connection():
-            try:
-                self.available_models = self.llm.get_available_models()
-            except Exception:
-                self.available_models = []
-        
         # State
         self.current_score = None
         self.original_score = None  # For explanation mode
@@ -290,7 +282,7 @@ class ChoralWorkbench:
         except Exception as e:
             return None
     
-    def create_interface(self):
+def create_interface(self):
         """Create Gradio interface"""
         with gr.Blocks(title="Choral LLM Workbench") as interface:
             gr.Markdown("# Choral LLM Workbench")
@@ -316,43 +308,6 @@ class ChoralWorkbench:
                     label="Status",
                     interactive=False,
                     placeholder="Upload a MusicXML file to begin"
-                )
-                
-                # Ollama configuration (compact version in header)
-                ollama_status_compact = gr.Textbox(
-                    label="🤖 Ollama",
-                    value="Checking...",
-                    interactive=False,
-                    scale=1
-                )
-            
-# File upload section
-            with gr.Row():
-                file_upload = gr.File(
-                    label="Upload MusicXML",
-                    file_types=[".xml", ".musicxml"]
-                )
-                upload_status = gr.Textbox(
-                    label="Status",
-                    interactive=False,
-                    placeholder="Upload a MusicXML file to begin"
-                )
-            
-            # Ollama configuration section
-            with gr.Accordion("🤖 LLM Configuration", open=False):
-                with gr.Row():
-                    model_dropdown = gr.Dropdown(
-                        choices=[],
-                        value="llama3:latest",
-                        label="Select Ollama Model",
-                        info="Choose which LLM model to use for transformations"
-                    )
-                    refresh_btn = gr.Button("🔄 Refresh Models", size="sm")
-                    
-                ollama_status = gr.Textbox(
-                    label="Ollama Status",
-                    value="Checking connection...",
-                    interactive=False
                 )
             
             # Notation selection section
@@ -534,8 +489,7 @@ class ChoralWorkbench:
                 outputs=[tlr_display, upload_status, event_summary]
             ).then(
                 lambda mode: (gr.update(visible=(mode == "transform")), 
-                            gr.update(visible=(mode == "explain")),
-                            gr.update(visible=True)),
+                            gr.update(visible=(mode == "explain"))),
                 inputs=[mode_choice],
                 outputs=[transform_section, explain_section, diff_section]
             )
@@ -544,42 +498,6 @@ class ChoralWorkbench:
                 fn=self.switch_notation,
                 inputs=[notation_choice],
                 outputs=[tlr_display]
-            )
-            
-            # Ollama event handlers
-            def refresh_models():
-                if self.llm.check_connection():
-                    try:
-                        models = self.llm.get_available_models()
-                        if models:
-                            model_names = [model.get('name', model) for model in models if isinstance(model, dict)]
-                            return gr.update(choices=model_names, value=self.llm.model_name), "✅ Connected - Found " + str(len(model_names)) + " models"
-                        else:
-                            return gr.update(), "⚠️ Connected but no models found"
-                    except Exception as e:
-                        return gr.update(), f"❌ Error: {str(e)}"
-                else:
-                    return gr.update(), "❌ Cannot connect to Ollama (localhost:11434)"
-            
-            def update_model(model_name):
-                self.llm.set_model(model_name)
-                return f"✅ Model changed to {model_name}"
-            
-            # Initialize on load
-            interface.load(
-                fn=refresh_models,
-                outputs=[model_dropdown, ollama_status]
-            )
-            
-            refresh_btn.click(
-                fn=refresh_models,
-                outputs=[model_dropdown, ollama_status]
-            )
-            
-            model_dropdown.change(
-                fn=update_model,
-                inputs=[model_dropdown],
-                outputs=[ollama_status]
             )
             
             # Update flag status when flags change
@@ -649,7 +567,7 @@ def main():
     # Launch interface
     app.launch(
         server_name="0.0.0.0",
-        server_port=7861,
+        server_port=7860,
         share=False
     )
 
