@@ -13,6 +13,7 @@ from event_indexer import EventIndexer
 from transformation_validator import TransformationValidator
 from tlr_diff_viewer import TLTDiffViewer
 from semantic_diff_analyzer import SemanticDiffAnalyzer
+from semantic_diff_ui import SemanticDiffUI
 
 
 class ChoralWorkbench:
@@ -30,6 +31,7 @@ class ChoralWorkbench:
         self.transformation_validator = TransformationValidator()
         self.diff_viewer = TLTDiffViewer()
         self.semantic_analyzer = SemanticDiffAnalyzer()
+        self.semantic_ui = SemanticDiffUI()
         
         # Initialize Ollama models
         self.available_models = []
@@ -227,17 +229,22 @@ class ChoralWorkbench:
         except Exception as e:
             return tlr_text, f"Error during transformation: {str(e)}"
     
-    def show_diff_view(self) -> str:
-        """Show diff view between original and transformed TLR"""
-        if not self.original_tlr or not self.current_score:
-            return "No transformation to compare."
-        
-        current_tlr = self._get_current_notation_display()
-        diff_html = self.diff_viewer.create_diff(
-            self.original_tlr, current_tlr, "html"
-        )
-        
-        return diff_html
+    def update_semantic_diff_display(self) -> str:
+        """Update semantic diff display with HTML output"""
+        try:
+            if not self.original_score or not self.current_score:
+                return self.semantic_ui.render_semantic_diff_html([])
+
+            # Compute semantic diff
+            semantic_diffs = self.semantic_analyzer.compute_semantic_diff(
+                self.original_score, self.current_score
+            )
+
+            # Render as HTML
+            return self.semantic_ui.render_semantic_diff_html(semantic_diffs)
+
+        except Exception as e:
+            return f'<div class="semantic-diff-container"><p style="color: #d32f2f;">Error computing semantic diff: {str(e)}</p></div>'
     
     def update_transformation_flags(self, transpose: bool, rhythm: bool, style: bool, harmonic: bool) -> str:
         """Update current transformation flags"""
@@ -487,15 +494,12 @@ class ChoralWorkbench:
                         )
                         explain_btn = gr.Button("Explain Music", variant="secondary")
             
-            # Diff view section
-            with gr.Row(visible=True) as diff_section:
-                with gr.Column():
-                    diff_html = gr.HTML(
-                        label="Diff View",
-                        value="<p>No transformation to compare. Upload and transform music to see diff.</p>",
-                        interactive=False
-                    )
-                    show_diff_btn = gr.Button("Refresh Diff View", variant="secondary", size="sm")
+            # Semantic Diff Section
+            with gr.Accordion("🎼 Show musical changes (semantic diff)", open=False) as diff_section:
+                semantic_diff_display = gr.HTML(
+                    value='<div class="semantic-diff-container"><p style="color: #666;">No semantic diff available. Transform music first.</p></div>',
+                    interactive=False
+                )
             
             # Common buttons
             with gr.Row():
@@ -647,14 +651,11 @@ class ChoralWorkbench:
                 inputs=[tlr_display, instruction_input, transpose_flag, rhythm_flag, style_flag, harmonic_flag],
                 outputs=[tlr_display, transform_status]
             ).then(
-                fn=self.show_diff_view,
-                outputs=[diff_html]
+                fn=lambda: gr.update(value=self.update_semantic_diff_display()),
+                outputs=[semantic_diff_display]
             )
             
-            show_diff_btn.click(
-                fn=self.show_diff_view,
-                outputs=[diff_html]
-            )
+
             
             explain_btn.click(
                 fn=self.explain_music,
