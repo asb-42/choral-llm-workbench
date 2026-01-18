@@ -168,23 +168,23 @@ class SemanticDiffAnalyzer:
                     scope="harmony",
                     location=location,
                     change_type="harmony",
-                    description=f"Added harmony: {after_harm.symbol}"
+                    description=f"Added harmony: {after_harm.harmony}"
                 ))
             elif after_harm is None:
                 diffs.append(SemanticDiffEntry(
                     scope="harmony",
                     location=location,
                     change_type="harmony",
-                    description=f"Removed harmony: {before_harm.symbol}"
+                    description=f"Removed harmony: {before_harm.harmony}"
                 ))
-            elif before_harm.symbol != after_harm.symbol:
+            elif before_harm.harmony != after_harm.harmony:
                 diffs.append(SemanticDiffEntry(
                     scope="harmony",
                     location=location,
                     change_type="harmony",
-                    description=f"Harmony changed: {before_harm.symbol} → {after_harm.symbol}",
-                    before_value=before_harm.symbol,
-                    after_value=after_harm.symbol
+                    description=f"Harmony changed: {before_harm.harmony} → {after_harm.harmony}",
+                    before_value=before_harm.harmony,
+                    after_value=after_harm.harmony
                 ))
         
         return diffs
@@ -239,25 +239,40 @@ class SemanticDiffAnalyzer:
     
     def _format_note(self, event: NoteEvent) -> str:
         """Format note for display"""
-        return f"{event.pitch} (duration: {event.duration})"
+        # Format pitch from separate components
+        alter_symbol = ""
+        if event.pitch_alter == 1:
+            alter_symbol = "#"
+        elif event.pitch_alter == -1:
+            alter_symbol = "b"
+
+        pitch = f"{event.pitch_step}{alter_symbol}{event.octave}"
+        return f"{pitch} (duration: {event.duration})"
     
-    def _analyze_note_change(self, before: NoteEvent, after: NoteEvent) -> dict:
+    def _analyze_note_change(self, before: NoteEvent, after: NoteEvent) -> Optional[dict]:
         """Analyze what changed between two notes"""
-        if before.pitch != after.pitch and before.duration == after.duration:
+        # Compare pitch components
+        before_pitch = (before.pitch_step, before.pitch_alter, before.octave)
+        after_pitch = (after.pitch_step, after.pitch_alter, after.octave)
+
+        pitch_changed = before_pitch != after_pitch
+        duration_changed = before.duration != after.duration
+
+        if pitch_changed and not duration_changed:
             return {
                 "type": "pitch",
-                "desc": f"Pitch changed: {before.pitch} → {after.pitch}",
-                "before": before.pitch,
-                "after": after.pitch
+                "desc": f"Pitch changed: {self._format_note(before)} → {self._format_note(after)}",
+                "before": self._format_note(before),
+                "after": self._format_note(after)
             }
-        elif before.pitch == after.pitch and before.duration != after.duration:
+        elif not pitch_changed and duration_changed:
             return {
                 "type": "rhythm",
                 "desc": f"Duration changed: {before.duration} → {after.duration}",
                 "before": str(before.duration),
                 "after": str(after.duration)
             }
-        elif before.pitch != after.pitch and before.duration != after.duration:
+        elif pitch_changed and duration_changed:
             return {
                 "type": "pitch_rhythm",
                 "desc": f"Note changed: {self._format_note(before)} → {self._format_note(after)}",
@@ -275,7 +290,7 @@ class SemanticDiffAnalyzer:
                 for measure in voice.measures:
                     for event in measure.events:
                         if isinstance(event, HarmonyEvent):
-                            location = f"{part.name}, {voice.name}, Measure {measure.number}"
+                            location = f"{part.name}, Voice {voice.id}, Measure {measure.number}"
                             harmonies[location] = event
         return harmonies
     
@@ -287,7 +302,7 @@ class SemanticDiffAnalyzer:
                 for measure in voice.measures:
                     note_events = [e for e in measure.events if isinstance(e, NoteEvent)]
                     if note_events:
-                        location = f"{part.name}, {voice.name}, Measure {measure.number}"
+                        location = f"{part.name}, Voice {voice.id}, Measure {measure.number}"
                         rhythms[location] = note_events
         return rhythms
     
