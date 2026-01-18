@@ -489,7 +489,8 @@ class ChoralWorkbench:
                 outputs=[tlr_display, upload_status, event_summary]
             ).then(
                 lambda mode: (gr.update(visible=(mode == "transform")), 
-                            gr.update(visible=(mode == "explain"))),
+                            gr.update(visible=(mode == "explain")),
+                            gr.update(visible=True)),
                 inputs=[mode_choice],
                 outputs=[transform_section, explain_section, diff_section]
             )
