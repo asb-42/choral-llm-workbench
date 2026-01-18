@@ -160,8 +160,9 @@ class ChoralWorkbench:
             return tlr_text, "Please select at least one transformation type."
         
         try:
-            # Store original score for validation
+            # Store original score and TLR for validation
             self.original_score = self.current_score
+            self.original_tlr = self._get_current_notation_display()
             
             # Build enhanced prompt with transformation constraints
             transformation_constraints = self.transformation_validator.get_transformation_prompt_additions(allowed_flags)
@@ -232,16 +233,19 @@ class ChoralWorkbench:
     def update_semantic_diff_display(self) -> str:
         """Update semantic diff display with HTML output"""
         try:
-            if not self.original_score or not self.current_score:
-                return self.semantic_ui.render_semantic_diff_html([])
+            # Parse scores from TLR if needed
+            if self.original_tlr and self.current_score:
+                original_score = self.tlr_parser.parse(self.original_tlr)[0]
+                if original_score and self.current_score:
+                    # Compute semantic diff
+                    semantic_diffs = self.semantic_analyzer.compute_semantic_diff(
+                        original_score, self.current_score
+                    )
 
-            # Compute semantic diff
-            semantic_diffs = self.semantic_analyzer.compute_semantic_diff(
-                self.original_score, self.current_score
-            )
+                    # Render as HTML
+                    return self.semantic_ui.render_semantic_diff_html(semantic_diffs)
 
-            # Render as HTML
-            return self.semantic_ui.render_semantic_diff_html(semantic_diffs)
+            return self.semantic_ui.render_semantic_diff_html([])
 
         except Exception as e:
             return f'<div class="semantic-diff-container"><p style="color: #d32f2f;">Error computing semantic diff: {str(e)}</p></div>'
@@ -278,7 +282,7 @@ class ChoralWorkbench:
             
             # Validate transformed TLR
             parsed_score, validation_errors = self.tlr_parser.parse(transformed_tlr)
-            
+
             if validation_errors:
                 error_msg = "Validation errors:\n" + "\n".join(validation_errors)
                 return transformed_tlr, error_msg
