@@ -2,22 +2,33 @@
 set -euo pipefail
 
 # Robust Pinokio-style installer with defensive checks and graceful fallbacks
-# - Non-interactive, robust installation for Python env, Node deps, SoundFont, and optional Ollama
 
 LOG_FILE="${LOG_FILE:-$HOME/.choral_install.log}"
 exec > >(tee -a "$LOG_FILE") 2>&1
-log() { local t; t=$(date +"%Y-%m-%d %H:%M:%S"); echo "[INSTALL] $t | $*"; }
+log() { printf "[INSTALL] %s | %s\n" "$(date '+%F %T')" "$*"; }
 exists() { command -v "$1" >/dev/null 2>&1; }
-remote_fail() { log "ERROR: $1"; }
 
 log "Starting robust Pinokio installer"
 
+# 0) Pre-flight compatibility patches (JSON/text-based) to reduce later failures
+log "Applying pre-flight compatibility patches (if needed)"
+if [ -f requirements.txt ]; then
+  if grep -q "pyfluidsynth>=2.3" requirements.txt; then
+    sed -i 's/pyfluidsynth>=2.3/pyfluidsynth>=1.3.4/' requirements.txt
+    log "Patched pyfluidsynth to >=1.3.4 in requirements.txt"
+  fi
+  if grep -q "fluidsynth>=0.3" requirements.txt; then
+    sed -i 's/fluidsynth>=0.3/fluidsynth>=0.2.0/' requirements.txt
+    log "Patched fluidsynth to >=0.2.0 in requirements.txt"
+  fi
+fi
+
 # 1) System detection
-if exists apt-get; then
+if command -v apt-get >/dev/null 2>&1; then
   PKGMGR="apt-get"
   UPDATE="apt-get update"
   INSTALL="apt-get install -y"
-elif exists brew; then
+elif command -v brew >/dev/null 2>&1; then
   PKGMGR="brew"
   UPDATE="brew update"
   INSTALL="brew install"
@@ -68,13 +79,73 @@ log "Virtual environment activated"
 if [ -f requirements.txt ]; then
   log "Installing Python dependencies from requirements.txt"
   if ! pip install -U pip; then log "Warning: pip upgrade failed"; fi
-  if ! pip install -r requirements.txt; then log "Warning: Somepython dependencies failed to install"; fi
+  if ! pip install -r requirements.txt; then
+    log "Initial Python dependencies install failed. Attempting fallback (explicit pyfluidsynth==1.3.4)"
+    if grep -q "pyfluidsynth" requirements.txt; then
+      sed -i 's/pyfluidsynth.*/pyfluidsynth==1.3.4/' requirements.txt
+      if ! pip install -r requirements.txt; then
+        log "Warning: pyfluidsynth fallback install failed. Continuing without it."
+      else
+        log "Pyfluidsynth fallback installed successfully."
+      fi
+    else
+      log "No pyfluidsynth entry found; continuing"
+    fi
+  fi
 else
   log "requirements.txt not found; skipping Python dependencies install"
 fi
 
-# 5) SoundFont
-mkdir -p ~/.fluidsynth
+# 5) Patch package.json safely (remove musicxml-json) using a tiny Python script instead of here-doc
+cat > /tmp/patch_json.py << 'PY'
+import json,sys
+p = sys.argv[1]
+try:
+  with open(p, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+except Exception:
+  sys.exit(0)
+if isinstance(data, dict) and data.get('dependencies') and isinstance(data['dependencies'], dict):
+  if 'musicxml-json' in data['dependencies']:
+    del data['dependencies']['musicxml-json']
+    with open(p, 'w', encoding='utf-8') as f:
+      json.dump(data, f, indent=2)
+    print(f"Patched {p}")
+else:
+  print(f"No patch needed for {p}")
+PY
+for proj in frontend backend; do
+  if [ -f "$proj/package.json" ]; then
+    log "Patching $proj/package.json to remove musicxml-json (JSON-safe) via patch_json.py"
+    python3 /tmp/patch_json.py "$proj/package.json" || log "Patch script failed for $proj/package.json"
+  fi
+done
+rm -f /tmp/patch_json.py
+
+# 6) Node dependencies (optional but encouraged)
+for proj in frontend backend; do
+  if [ -d "$proj" ]; then
+    if [ -f "$proj/package-lock.json" ]; then
+      log "Installing $proj dependencies via npm ci"
+      (cd $proj && npm ci) && log "$proj dependencies installed" || log "Warning: npm ci failed; attempting npm install"
+      (cd $proj && npm install) || true
+    elif [ -f "$proj/package.json" ]; then
+      log "Installing $proj dependencies via npm install"
+      (cd $proj && npm install) || log "Frontend/backend npm install failed"
+    else
+      log "$proj has no package.json; skipping npm install"
+    fi
+  fi
+done
+
+# 7) Ollama presence check
+if command -v ollama >/dev/null 2>&1; then
+  log "Ollama found on PATH"
+else
+  log "WARNING: Ollama not found. Local LLM integration will require installation in Phase 7+ (or later)."
+fi
+
+# 8) SoundFont
 if [ -f ~/.fluidsynth/default_sound_font.sf2 ]; then
   log "SoundFont already present at ~/.fluidsynth/default_sound_font.sf2"
 else
@@ -96,29 +167,4 @@ else
   fi
 fi
 
-# 6) Ollama
-if command -v ollama >/dev/null 2>&1; then
-  log "Ollama found on PATH"
-else
-  log "WARNING: Ollama not found. Local LLM integration will require installation in Phase 7+ (or later)."
-fi
-
-# 7) Node dependencies (optional but encouraged)
-if [ -d frontend ]; then
-  log "Installing frontend dependencies (npm ci)"
-  (cd frontend && npm ci) && log "Frontend dependencies installed" || log "Warning: Frontend npm install failed"
-fi
-if [ -d backend ]; then
-  log "Installing backend dependencies (npm ci)"
-  (cd backend && npm ci) && log "Backend dependencies installed" || log "Warning: Backend npm install failed"
-fi
-
-log "Installation complete. Summary:" 
-log "- Python venv: $VENVDIR"
-log "- SoundFont: ${HOME}/.fluidsynth/default_sound_font.sf2 (attempted)"
-log "- Ollama: ${command -v ollama >/dev/null 2>&1 && echo 'present' || echo 'not found'}"
-log "- UI: Frontend and Backend install attempted (npm)"
-
-if [ -n "$LOG_FILE" ]; then
-  log "Logs written to $LOG_FILE"
-fi
+log "Installation complete. Summary above."

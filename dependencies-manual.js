@@ -54,13 +54,13 @@ const checkPythonAndPyenv = () => {
 };
 
 const installAlternativePackages = () => {
-  console.log(chalk.blue('\n🔧 Installing alternative packages (musicxml-json → xml2js)...'));
+  console.log(chalk.blue('\n🔧 Installing alternative packages (xml2js) as replacement for musicxml-json)...');
   
   const alternatives = [
     {
       name: 'xml2js',
       reason: 'More reliable MusicXML parsing',
-      original: 'musicxml-json'
+      original: 'xml2js'
     },
     {
       name: 'music21',

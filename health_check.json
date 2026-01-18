@@ -1,0 +1,13 @@
+{
+  "python_ok": true,
+  "venv_exists": true,
+  "ollama_available": true,
+  "soundfont_present": true,
+  "node_available": true,
+  "npm_available": true,
+  "storage_dirs": {
+    "undo_redo": false,
+    "scores": false,
+    "voices": false
+  }
+}

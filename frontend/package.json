@@ -23,7 +23,6 @@
     "element-plus": "^2.4.0",
     "@element-plus/icons-vue": "^2.3.0",
     "wavefile": "^11.0.0",
-    "musicxml-json": "^1.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
