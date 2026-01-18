@@ -1,0 +1,85 @@
+# Ollama Model Recommendations for Choral Music Transformer
+
+## 1. Model Selection Principles for Music/Notation Work
+
+Unlike domain-specific models (e.g., music generation), most LLMs specialize in general reasoning and instruction following, which is what your TLR prompts require:
+
+- interpreting structured musical text,
+- applying transformations deterministically,
+- following detailed rule constraints.
+
+For such tasks, the higher the language understanding and instruction compliance, the better — but you must balance that with local hardware constraints.
+
+## 2. Top Recommended Ollama Models for Your Project
+
+### A. Best General-Purpose Instruction Models
+
+These are strong at parsing complex text and following strict prompts:
+
+- **llama3:8b** or **llama3.2:latest** – strong overall performance, good reasoning, and well-tuned for instruction tasks.
+- **gemma2:9b** – very capable general model with solid understanding without excessive compute requirements.
+- **mistral:7b** – lighter, fast, and decent instruction following; good for lower-end hardware.
+
+These models are ideal for tasks such as:
+- interpreting TLR you generate,
+- applying transformation flags,
+- explaining decisions in your structured dialog.
+
+**Why these:** community and model guides show these as good general-purpose instruction models available in Ollama.
+
+## 3. Hardware-Friendly Choices
+
+If you are on a laptop or workstation without large GPU memory:
+
+- **mistral:7b** — runs comfortably on typical workstations with 16–32 GB RAM.
+- **gemma2:2b** or **9b** — smaller footprint, still effective.
+- **llama3:8b** on quantized or optimized config is often a good balance.
+
+These models load faster, require less RAM/VRAM, and give reasonable quality for structured tasks.
+
+## 4. High-Performance (if you have a beefy machine)
+
+If you have ≥48 GB of RAM / good GPU:
+
+- **llama3:70b** — best general quality, especially for complex reasoning and long context.
+- **gemma2:27b** — more capable than mid-tier models, less heavy than the 70B.
+
+These are not required for your project initially, but worth exploring later for improved accuracy.
+
+## 5. Recommended Model to Load and Test First
+
+For initial testing, use a mid-range model that balances quality and speed:
+
+```bash
+ollama pull llama3:latest
+ollama run llama3:latest
+```
+
+or if you want slightly lighter:
+
+```bash
+ollama pull mistral:latest
+ollama run mistral:latest
+```
+
+These are good starting points because they are:
+- widely supported in Ollama,
+- strong enough for structured instruction tasks,
+- not too heavy on memory.
+
+Once this works well, you can experiment with larger models like gemma2:27b or llama3:70b if you need deeper reasoning.
+
+## 6. Tips for Structured Prompts
+
+- Use consistent instruction phrasing (your production system prompt helps a lot).
+- Keep context windows in mind: larger models support longer contexts, which helps if your TLR gets very long (e.g., full score segments).
+- Start with temperature ~0.1 to reduce creative noise, especially in structured tasks.
+
+## Summary Recommendation (Safe Starting Point)
+
+| Scenario | Recommended Model |
+|----------|-------------------|
+| Fast testing, low hardware | mistral:latest |
+| Balanced quality/speed | llama3:latest |
+| Better reasoning (more RAM) | gemma2:9b |
+| High-end deep reasoning | llama3:70b (if resources allow) |
