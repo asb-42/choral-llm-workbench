@@ -19,7 +19,12 @@ Rules:
 - Do not invent measures, parts, or voices.
 - Do not create overlapping events.
 - Keep durations positive and explicit.
-- Output must follow the exact input format."""
+- Output must follow the exact input format.
+- If you change harmony, you must emit a HARMONY event.
+- Do not encode harmonic changes implicitly via pitch changes alone.
+- Use HARMONY events for all harmonic transformations (modulations, chord changes, etc.).
+- Harmony events format: HARMONY t=<onset> symbol=<chord> [key=<key_context>]
+- Example: HARMONY t=0 symbol=iv key=E minor"""
     
     def transform_music(self, tlr_text: str, instruction: str) -> Tuple[str, List[str]]:
         """Transform music using LLM with given instruction"""

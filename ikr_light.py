@@ -23,6 +23,7 @@ class RestEvent:
 class HarmonyEvent:
     onset: Fraction
     harmony: str
+    key: Optional[str] = None  # Optional key context (e.g., "E minor")
 
 
 @dataclass

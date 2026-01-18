@@ -89,8 +89,9 @@ class TLRConverter:
             return f"REST t={event.onset} dur={event.duration}"
         
         elif isinstance(event, HarmonyEvent):
-            # Always include both onset and symbol explicitly
-            return f"HARMONY t={event.onset} symbol={event.harmony}"
+            # Always include onset, symbol, and optional key explicitly
+            key_part = f" key={event.key}" if event.key else ""
+            return f"HARMONY t={event.onset} symbol={event.harmony}{key_part}"
         
         elif isinstance(event, LyricEvent):
             # Always include both onset and text explicitly
@@ -176,7 +177,15 @@ class TLRConverter:
         
         elif event_type == "HARMONY":
             symbol = parts[2].split('=')[1]
-            return HarmonyEvent(onset=onset, harmony=symbol)
+            
+            # Parse optional key parameter
+            key = None
+            for part in parts[3:]:
+                if part.startswith('key='):
+                    key = part.split('=')[1]
+                    break
+            
+            return HarmonyEvent(onset=onset, harmony=symbol, key=key)
         
         elif event_type == "LYRIC":
             text = parts[2].split('=')[1]

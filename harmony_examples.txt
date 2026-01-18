@@ -1,0 +1,28 @@
+# Beispiel für harmonische Transformation mit expliziten HARMONY-Events
+
+# Original (C-Dur)
+PART Piano ROLE instrument
+VOICE 1
+MEASURE 1 TIME 4/4
+NOTE t=0 dur=1/4 pitch=C4
+NOTE t=1/4 dur=1/4 pitch=E4
+NOTE t=1/2 dur=1/2 pitch=G4
+HARMONY t=0 symbol=I
+
+# Transformation: "Modulate to G major and add chord progression"
+
+# Erwartete Ausgabe (explizite Harmonie-Änderungen)
+PART Piano ROLE instrument
+VOICE 1
+MEASURE 1 TIME 4/4
+NOTE t=0 dur=1/4 pitch=C4
+NOTE t=1/4 dur=1/4 pitch=D4
+NOTE t=1/2 dur=1/2 pitch=B4
+HARMONY t=0 symbol=IV key=G major
+HARMONY t=1/4 symbol=V key=G major
+
+# Weitere Beispiele für Harmonie-Symbole:
+# HARMONY t=0 symbol=iv key=E minor
+# HARMONY t=2 symbol=V7/V key=C major
+# HARMONY t=0 symbol=Ger6 key=B minor
+# HARMONY t=0 symbol=N6 key=F major

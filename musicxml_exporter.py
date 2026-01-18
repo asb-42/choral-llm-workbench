@@ -180,6 +180,14 @@ class MusicXMLExporter:
         if harmony_event.harmony:
             m21_harmony.figure = harmony_event.harmony
         
+        # Set key as lyric/comment for now (music21 Harmony doesn't have key field)
+        if harmony_event.key:
+            # Store key information in harmony figure with special format
+            if m21_harmony.figure:
+                m21_harmony.figure = f"{m21_harmony.figure} (key: {harmony_event.key})"
+            else:
+                m21_harmony.figure = f"key: {harmony_event.key}"
+        
         # Set offset (onset)
         m21_harmony.offset = float(harmony_event.onset)
         

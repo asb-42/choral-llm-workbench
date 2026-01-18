@@ -275,7 +275,14 @@ class TLRParser:
             self.errors.append(f"Line {line_num}: Harmony symbol cannot be empty")
             return None
         
-        return HarmonyEvent(onset=onset, harmony=symbol)
+        # Parse optional key parameter
+        key = None
+        for part in parts[3:]:
+            if part.startswith('key='):
+                key = part.split('=')[1]
+                break
+        
+        return HarmonyEvent(onset=onset, harmony=symbol, key=key)
     
     def _parse_lyric_event(self, parts: List[str], line_num: int, onset: Fraction) -> Optional[LyricEvent]:
         """Parse LYRIC event with validation"""
