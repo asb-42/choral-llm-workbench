@@ -21,7 +21,19 @@
 
 ### Initial Setup
 
-#### 1. Install Dependencies
+#### 1. Create and Activate Python Virtual Environment
+```bash
+# Create virtual environment
+python -m venv .venv
+
+# Activate (Linux/macOS)
+source .venv/bin/activate
+
+# Activate (Windows)
+.venv\Scripts\activate
+```
+
+#### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```

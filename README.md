@@ -16,7 +16,11 @@ This tool enables:
 
 ---
 
-## Overview
+## 📖 Documentation
+
+For detailed installation, usage instructions, and examples, please see the **[User Manual (USER_MANUAL.md)](USER_MANUAL.md)**.
+
+## Quick Overview
 
 The **Choral Music Transformer** is a production-ready framework for deterministic choral music transformation. It combines traditional MusicXML representation with AI-driven transformations while maintaining strict musical correctness and professional workflow compatibility.
 
@@ -51,54 +55,64 @@ The **Choral Music Transformer** is a production-ready framework for determinist
    - Real-time feedback and audio preview capabilities.
 
 
-## Installation Requirements
+## Quick Start
 
-- Python 3.12
-- Packages (install via `pip install -r requirements.txt`):
-  - `gradio`
-  - `music21`
-  - `pygame`
-  - `mido`
-  - `anyio`
-- A **General MIDI SoundFont** for audio rendering:
-  - Path: `~/.fluidsynth/default_sound_font.sf2`
-  - Recommended: [FluidR3_GM.sf2](https://member.keymusician.com/Member/FluidR3_GM/index.html)
-- Optional audio tunings supported: **432 Hz, 440 Hz, 443 Hz**.
+1. **Clone the repository:**
+   ```bash
+   git clone <repository_url>
+   cd choral-llm-workbench
+   ```
 
+2. **Set up the environment** (see [User Manual](USER_MANUAL.md) for detailed instructions):
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate       # Linux/macOS
+   # or .venv\Scripts\activate      # Windows
+   pip install -r requirements.txt
+   ```
 
-## Getting Started
+3. **Launch the application:**
+   ```bash
+   python app.py
+   ```
 
-1. Clone the repository:
+4. **Open browser:** `http://localhost:7860`
 
-git clone <repository_url>
-cd choral-llm-workbench
+## System Requirements
 
-2. Create and activate a Python virtual environment:
+- **Python**: 3.11+ with type hints
+- **RAM**: 8GB+ recommended for LLM operations
+- **Browser**: Modern web browser with HTML5 support
+- **Optional**: Local LLM (Ollama or compatible service)
 
-python -m venv .venv
-source .venv/bin/activate       # Linux/macOS
-.venv\Scripts\activate          # Windows
+## Key Dependencies
 
-3. Install dependencies:
+- `gradio` - Web UI framework
+- `music21` - Music notation and analysis
+- `pygame`, `pyfluidsynth` - Audio rendering
+- **Optional**: SoundFont for MIDI/WAV output
 
-pip install -r requirements.txt
+## Installation Methods
 
-4. Download a default SoundFont to ~/.fluidsynth/default_sound_font.sf2
+### Standard Installation
+Follow the detailed setup in the [User Manual](USER_MANUAL.md).
 
-Alternatively if you want to use Pinokio:
-
-Run the installation script:
-
+### Pinokio Installation
+```bash
 bash install_pinokio.sh
+```
 
+### Audio Setup
+For audio rendering, install a SoundFont:
+- Path: `~/.fluidsynth/default_sound_font.sf2`
+- Recommended: [FluidR3_GM.sf2](https://member.keymusician.com/Member/FluidR3_GM/index.html)
 
-5. Activate the virtual environment:
+## Legacy CLI Interfaces
 
-source .venv/bin/activate
-
-6. Run an example Gradio interface:
-
+Legacy Gradio apps are available in the `cli/` directory:
+```bash
 python cli/gradio_app_satb_llm.py
+```
 
 
 
