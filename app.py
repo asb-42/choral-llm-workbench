@@ -317,26 +317,6 @@ class ChoralWorkbench:
                     interactive=False,
                     placeholder="Upload a MusicXML file to begin"
                 )
-                
-                # Ollama configuration (compact version in header)
-                ollama_status_compact = gr.Textbox(
-                    label="🤖 Ollama",
-                    value="Checking...",
-                    interactive=False,
-                    scale=1
-                )
-            
-# File upload section
-            with gr.Row():
-                file_upload = gr.File(
-                    label="Upload MusicXML",
-                    file_types=[".xml", ".musicxml"]
-                )
-                upload_status = gr.Textbox(
-                    label="Status",
-                    interactive=False,
-                    placeholder="Upload a MusicXML file to begin"
-                )
             
             # Ollama configuration section
             with gr.Accordion("🤖 LLM Configuration", open=False):
