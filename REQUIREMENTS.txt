@@ -1,0 +1,77 @@
+# Choral LLM Workbench - Dependencies
+
+## Core Requirements
+
+### Python Dependencies
+- Python 3.11+
+- music21>=9.0.0
+- gradio>=4.0.0
+- requests>=2.28.0
+- fractions (built-in)
+- dataclasses (built-in)
+
+### LLM Dependencies
+- Ollama>=0.1.0 (for local LLM serving)
+- Compatible models: llama3.2, llama3.1, mixtral-8x7b, etc.
+
+### Development Dependencies
+- pytest>=8.0.0 (for testing)
+- hypothesis>=6.96.0 (for property-based testing)
+- pytest-cov>=4.0.0 (for coverage)
+
+### Optional Dependencies
+- Beautiful Soup4 (for HTML parsing, optional)
+- lxml (for XML processing, alternative to music21)
+
+## Installation
+
+### Method 1: Using pip
+```bash
+pip install -r requirements.txt
+```
+
+### Method 2: Using conda
+```bash
+conda create -n choral-llm python=3.11
+conda activate choral-llm
+pip install -r requirements.txt
+```
+
+### Method 3: Development Setup
+```bash
+# Install test dependencies
+pip install -r test-requirements.txt
+
+# Run tests to verify installation
+python run_tests.py --all
+```
+
+## System Requirements
+
+### For Local LLM (Ollama)
+- Docker or local installation
+- Minimum 8GB RAM recommended
+- Supports CPU and GPU inference
+
+### For UI (Gradio)
+- Modern web browser
+- Network connection for model API calls
+- Minimum 4GB RAM
+
+### File System
+- Temporary directory access for file uploads/exports
+- Write permissions for output directory
+- Sufficient disk space for intermediate files
+
+## Architecture Notes
+
+### Python Version Support
+- Fully tested on Python 3.11 and 3.12
+- May work on 3.10+ but not officially supported
+- Windows, macOS, and Linux compatible
+
+### Browser Compatibility
+- Chrome/Chromium 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
