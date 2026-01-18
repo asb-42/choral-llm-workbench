@@ -69,7 +69,7 @@ Please explain what happened by referencing specific event IDs and their locatio
         
         try:
             # Get explanation from LLM
-            response = self.llm._call_ollama(self.system_prompt, analysis_prompt)
+            response = self.llm.explain(self.system_prompt, analysis_prompt)
             return response.strip(), []
             
         except Exception as e:
@@ -106,7 +106,7 @@ Please analyze the music and answer using specific event IDs and locations."""
         
         try:
             # Get explanation from LLM
-            response = self.llm._call_ollama(self.system_prompt, context_prompt)
+            response = self.llm.explain(self.system_prompt, context_prompt)
             return response.strip(), []
             
         except Exception as e:

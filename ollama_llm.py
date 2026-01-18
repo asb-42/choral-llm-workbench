@@ -122,3 +122,7 @@ Instruction:
             return result.get("models", [])
         except requests.exceptions.RequestException:
             return []
+    
+    def explain(self, system_prompt: str, user_prompt: str, timeout: int = 300) -> str:
+        """Public method for explanation mode - backward compatibility"""
+        return self._call_ollama(system_prompt, user_prompt, timeout)
