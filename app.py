@@ -12,6 +12,7 @@ from explainer_llm import ExplainerLLM
 from event_indexer import EventIndexer
 from transformation_validator import TransformationValidator
 from tlr_diff_viewer import TLTDiffViewer
+from semantic_diff_analyzer import SemanticDiffAnalyzer
 
 
 class ChoralWorkbench:
@@ -28,6 +29,7 @@ class ChoralWorkbench:
         self.event_indexer = EventIndexer()
         self.transformation_validator = TransformationValidator()
         self.diff_viewer = TLTDiffViewer()
+        self.semantic_analyzer = SemanticDiffAnalyzer()
         
         # Initialize Ollama models
         self.available_models = []
@@ -318,6 +320,33 @@ class ChoralWorkbench:
                 
         except Exception as e:
             return None
+    
+    def compute_semantic_diff(self) -> str:
+        """Compute semantic diff for UI display"""
+        if self.original_tlr and self.current_tlr:
+            try:
+                # Parse both TLRs to IKR
+                original_score = self.tlr_parser.parse(self.original_tlr)[0]
+                transformed_score = self.tlr_parser.parse(self.current_tlr)[0]
+                
+                if original_score and transformed_score:
+                    # Compute semantic differences
+                    semantic_diffs = self.semantic_analyzer.compute_semantic_diff(
+                        original_score, transformed_score
+                    )
+                    
+                    # Format for display
+                    diff_lines = []
+                    for diff in semantic_diffs:
+                        diff_lines.append(f"[{diff.scope}] {diff.location}: {diff.description}")
+                    
+                    return "\n".join(diff_lines)
+                else:
+                    return "Unable to parse scores for semantic analysis"
+            except Exception as e:
+                return f"Error in semantic analysis: {str(e)}"
+        else:
+            return "No semantic diff available (upload and transform first)"
     
     def create_interface(self):
         """Create Gradio interface"""
