@@ -72,7 +72,7 @@ Instruction:
         
         return response.strip(), []
     
-    def _call_ollama(self, system_prompt: str, user_prompt: str) -> str:
+    def _call_ollama(self, system_prompt: str, user_prompt: str, timeout: int = 600) -> str:
         """Make API call to Ollama"""
         url = f"{self.base_url}/api/generate"
         
@@ -84,14 +84,14 @@ Instruction:
         }
         
         try:
-            response = requests.post(url, json=payload, timeout=300)  # Increased timeout for CPU inference
+            response = requests.post(url, json=payload, timeout=600)  # Increased timeout for CPU inference
             response.raise_for_status()
             
             result = response.json()
             return result.get("response", "")
             
         except requests.exceptions.Timeout as e:
-            raise RuntimeError(f"LLM inference timeout after 300 seconds. Consider using a smaller model or upgrading to GPU acceleration.")
+            raise RuntimeError(f"LLM inference timeout after 600 seconds. Consider using a smaller model or upgrading to GPU acceleration.")
         except requests.exceptions.RequestException as e:
             if "timeout" in str(e).lower():
                 raise RuntimeError(f"LLM inference timeout. Try reducing input complexity or use a smaller model.")
@@ -123,6 +123,6 @@ Instruction:
         except requests.exceptions.RequestException:
             return []
     
-    def explain(self, system_prompt: str, user_prompt: str, timeout: int = 300) -> str:
+    def explain(self, system_prompt: str, user_prompt: str, timeout: int = 600) -> str:
         """Public method for explanation mode - backward compatibility"""
         return self._call_ollama(system_prompt, user_prompt, timeout)
