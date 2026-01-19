@@ -7,55 +7,22 @@ from tlr_converter import TLRConverter
 class OllamaLLM:
     """Interface to Ollama LLM for musical transformations"""
     
-    def __init__(self, model_name: str = "llama3.2:1b", base_url: str = "http://localhost:11434"):
+    def __init__(self, model_name: str = "mistral:latest", base_url: str = "http://localhost:11434"):
         self.model_name = model_name
         self.base_url = base_url
         self.tlr_converter = TLRConverter()
         
-        # Fixed system prompt
-        self.system_prompt = """You are transforming musical event lists (TLR format).
+        # Fixed system prompt - shortened for reliability
+        self.system_prompt = """Transform musical event lists (TLR format).
 
-CRITICAL FORMAT REQUIREMENTS:
-- EVERY line must be a valid TLR event: NOTE, REST, HARMONY, or LYRIC
-- Headers MUST be on separate lines: MEASURE <number> or VOICE <name>
-- NO parenthetical information like (Voice 1) - use separate VOICE lines
-- NO figured bass notation like [FIGURED BASS: ...] - use HARMONY events only
-- Events MUST follow exact format:
-  * NOTE t=<onset> dur=<duration> pitch=<pitch> [voice=<voice>]
-  * REST t=<onset> dur=<duration>
-  * HARMONY t=<onset> symbol=<chord> [key=<key>]
-  * LYRIC t=<onset> text="<lyric>"
-
-STRICT RULES:
-- Do NOT remove MEASURE or VOICE headers
-- Do NOT invent new measures, parts, or voices
-- Do NOT create overlapping events
-- Keep durations positive (fractions like 1/4, 1/2, 1)
-- Do NOT embed voice information in NOTE events
-- Do NOT write explanations or narrative text
-- Output ONLY valid TLR events - no comments, no explanations
-
-HARMONY RULES:
-- All harmonic changes MUST use HARMONY events only
-- NEVER encode harmony changes via pitch changes alone
-- Format: HARMONY t=<onset> symbol=<chord> [key=<key>]
-
-EXAMPLE OUTPUT FORMAT:
-MEASURE 1
-VOICE Soprano
-NOTE t=0 dur=1 pitch=C4
-NOTE t=1 dur=1 pitch=D4
-VOICE Alto
-NOTE t=0 dur=1 pitch=G3
-NOTE t=1 dur=1 pitch=A3
-HARMONY t=0 symbol=C
-
-DO NOT OUTPUT:
-- Any narrative explanations
-- Comments about what you did
-- Figured bass notation
-- Parenthetical voice information
-- Any text that is not a valid TLR event"""
+REQUIRED FORMAT:
+- Output ONLY valid TLR events: NOTE, REST, HARMONY, LYRIC
+- Headers: MEASURE <number> or VOICE <name>
+- Events: NOTE t=<onset> dur=<duration> pitch=<pitch>
+- REST t=<onset> dur=<duration>
+- HARMONY t=<onset> symbol=<chord>
+- Keep durations positive, no overlapping events
+- NO explanations, comments, or extra text"""
     
     def transform_music(self, tlr_text: str, instruction: str) -> Tuple[str, List[str]]:
         """Transform music using LLM with given instruction"""
