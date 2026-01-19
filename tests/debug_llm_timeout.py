@@ -119,7 +119,7 @@ def test_llm_performance():
             response = workbench.llm._call_ollama(
                 enhanced_system_prompt,
                 f"{result_tlr}\\n\\nInstruction: Transpose up 1 step",
-                timeout=180  # 3 Minuten
+                timeout=600  # 10 Minuten
             )
             elapsed = time.time() - start_time
             print(f"   ✅ Erfolgreich in {elapsed:.1f}s")

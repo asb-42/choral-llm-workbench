@@ -49,7 +49,7 @@ Instruction:
         }
         
         try:
-            response = requests.post(url, json=payload, timeout=180)  # Reduced timeout - use faster model
+            response = requests.post(url, json=payload, timeout=timeout)
             response.raise_for_status()
             
             result = response.json()
