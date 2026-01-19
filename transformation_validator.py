@@ -48,6 +48,30 @@ class TransformationValidator:
         if not allowed_flags:
             errors.append("No transformation flags selected - transformation not allowed")
             return False, errors
+
+    def get_transformation_prompt_additions(self, allowed_flags: Set[str]) -> str:
+        """
+        Generate additional prompt constraints based on allowed transformation flags
+
+        Returns prompt text to add to system prompt for constrained transformations
+        """
+        if not allowed_flags:
+            return ""
+
+        constraints = ["ADDITIONAL TRANSFORMATION CONSTRAINTS:"]
+
+        for flag in allowed_flags:
+            if flag in self.allowed_transformations:
+                trans_info = self.allowed_transformations[flag]
+                constraints.append(f"- {flag.upper()}: {trans_info['description']}")
+                constraints.append(f"  Allowed changes: {', '.join(trans_info['allowed_changes'])}")
+                constraints.append(f"  Forbidden changes: {', '.join(trans_info['forbidden_changes'])}")
+
+        constraints.append("")
+        constraints.append("IMPORTANT: Only perform the transformations explicitly allowed above.")
+        constraints.append("Do NOT make changes that are listed as 'forbidden' for any selected transformation type.")
+
+        return "\n".join(constraints)
         
         # Validate each flag
         for flag in allowed_flags:

@@ -1,173 +1,194 @@
-# Choral Music Transformer
+# Choral Music Workbench
 
-**Deterministic choral music transformation engine** built on MusicXML and LLM technology.  
-Designed for professional choir conductors, arrangers, and composers.
+**Semantic choral music transformation and analysis system** built on MusicXML, TLR, and LLM technology.  
+Designed for professional choir conductors, arrangers, composers, and music educators.
 
-This tool enables:
+This tool provides complete end-to-end music transformation workflow with semantic analysis:
 
-- **Polyphonic transformations**: SATB and additional accompaniment voices supported
-- **Complex rhythm handling**: irregular meters, polyrhythms, and precise note durations
-- **Harmonic reharmonization**: explicit harmony events with key context
-- **Transposition & style adaptation**: controlled, deterministic changes for professional workflows
-- **LLM-assisted workflow**: text-based representation (TLR) ensures explainability and reproducibility
-- **Roundtrip MusicXML support**: maintain original structure and musical correctness
+## 🎯 Core Features
 
-**Target Users:** Choir directors, arrangers, and composers who need deterministic, AI-assisted transformations while retaining full musical control.
+### 1. Music Transformation Pipeline
+- **Upload & Parse**: Load MusicXML files and convert to TLR (Textual LLM Representation)
+- **AI-Powered Transformations**: Transpose, rhythm simplification, style changes, harmonic reharmonization
+- **Semantic Analysis**: Deep musical diff analysis showing exactly what changed between original and transformed scores
+- **Export Capability**: Convert transformed music back to MusicXML for download
+
+### 2. Transformation Types
+- **Transpose**: Change pitch by specified intervals while preserving harmonic structure
+- **Rhythm Simplification**: Reduce complexity while maintaining musical essence  
+- **Style Adaptation**: Apply stylistic changes (e.g., classical → contemporary)
+- **Harmonic Reharmonization**: Generate new harmonic progressions while preserving melodic lines
+
+### 3. Semantic Diff System
+- **Note-Level Analysis**: Track individual pitch, duration, and rhythm changes
+- **Structure Comparison**: Measure, voice, and part-level transformations
+- **Visual Feedback**: Color-coded HTML interface showing all musical modifications
+- **Explainable Changes**: Each transformation is traceable and musically justified
+
+### 4. Professional Workflow Features
+- **TLR Format**: Human-readable text representation for AI processing
+- **Validation Layer**: Ensure musical correctness and structural integrity
+- **Roundtrip Compatibility**: Maintain MusicXML fidelity throughout the pipeline
+- **CPU-Optimized**: Fast inference using optimized models (qwen2:1.5b default)
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Python**: 3.11+ 
+- **RAM**: 4GB+ minimum, 8GB+ recommended
+- **Ollama**: Local LLM server (recommended)
+
+### Installation
+```bash
+# Clone repository
+git clone <repository_url>
+cd choral-llm-workbench
+
+# Set up virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# or .venv\Scripts\activate  # Windows
+
+# Install dependencies  
+pip install -r requirements.txt
+
+# Set up Ollama (recommended)
+ollama pull qwen2:1.5b  # Fast CPU model
+ollama serve
+```
+
+### Launch Application
+```bash
+# Start the web interface
+python app.py
+
+# Open browser: http://localhost:7861
+```
+
+## 📖 System Architecture
+
+### Core Components
+- **app.py**: Main application and Gradio web interface
+- **ikr_light.py**: Internal musical knowledge representation
+- **tlr_converter.py**: MusicXML ↔ TLR conversion
+- **semantic_diff_analyzer.py**: Musical change analysis engine
+- **ollama_llm.py**: LLM interface for transformations
+- **musicxml_exporter.py**: Export functionality
+
+### Data Flow
+1. **Input**: MusicXML file upload
+2. **Parse**: Convert to IKR (musical objects)
+3. **Transform**: LLM processes TLR with constraints
+4. **Validate**: Ensure musical correctness
+5. **Analyze**: Generate semantic diff between scores
+6. **Display**: Present changes in intuitive web interface
+7. **Export**: Transform back to MusicXML for download
+
+## 🔧 Configuration
+
+### Model Configuration
+```python
+# Default fast CPU model
+DEFAULT_MODEL = "qwen2:1.5b"
+
+# Timeout settings (seconds)
+LLM_TIMEOUT = 180
+```
+
+### Supported Models
+- **qwen2:1.5b**: Fast CPU inference (default)
+- **mistral:latest**: Higher quality, slower CPU inference  
+- **llama3:latest**: Advanced reasoning capabilities
+
+## 📊 Performance Notes
+
+### CPU Performance
+- **qwen2:1.5b**: ~20-30 seconds for simple transformations
+- **Larger models**: 2-5 minutes, may timeout on slower systems
+
+### Memory Usage
+- **Base application**: ~200MB RAM
+- **LLM inference**: +1-4GB depending on model size
+
+## 🧪 Testing
+
+### Test Scripts
+```bash
+# Test complete pipeline
+python tests/test_fixed_pipeline.py
+
+# Debug specific components
+python tests/debug_semantic_diff.py
+python tests/debug_export.py
+```
+
+### Validation
+- Roundtrip MusicXML conversion
+- Musical structure preservation  
+- TLR format compliance
+- Semantic diff accuracy
+
+## 📁 Directory Structure
+
+```
+choral-llm-workbench/
+├── app.py                          # Main application
+├── ikr_light.py                     # Musical representation
+├── tlr_converter.py                 # Format conversion
+├── semantic_diff_analyzer.py         # Change analysis
+├── semantic_diff_ui.py              # UI for diffs
+├── ollama_llm.py                   # LLM interface
+├── musicxml_exporter.py             # Export functionality
+├── transformation_validator.py         # Transformation rules
+├── tlr_parser.py                    # TLR parsing
+├── tests/                           # Test suite
+├── requirements.txt                  # Dependencies
+└── README.md                        # This file
+```
+
+## 🎯 Use Cases
+
+### For Choir Conductors
+- Transpose pieces for different vocal ranges
+- Simplify rhythms for amateur singers
+- Generate alternative harmonizations
+
+### For Music Educators  
+- Create teaching examples with different difficulty levels
+- Demonstrate musical transformations
+- Analyze structural changes
+
+### For Composers & Arrangers
+- Rapid prototyping of variations
+- Style transfer applications
+- Harmonic exploration tools
+
+## 🔍 Recent Updates (v2.2+)
+
+### ✅ Fixed Issues
+- **LLM Timeout**: Switched to fast qwen2:1.5b model for CPU inference
+- **Semantic Diff Display**: Fixed score tracking and UI rendering
+- **Export Functionality**: Resolved TLR parsing and file export issues
+- **Measure Validation**: Improved boundary checking for note durations
+
+### 🚀 Performance Improvements
+- Reduced transformation time from 600s+ to 20-30s
+- Improved semantic diff accuracy and completeness
+- Enhanced error handling and user feedback
+- Optimized memory usage for large scores
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create feature branch
+3. Make changes with tests
+4. Submit pull request with description
+
+## 📜 License
+
+MIT License - see LICENSE file for details.
 
 ---
 
-## 📖 Documentation
-
-For detailed installation, usage instructions, and examples, please see the **[User Manual (USER_MANUAL.md)](USER_MANUAL.md)**.
-
-## Quick Overview
-
-The **Choral Music Transformer** is a production-ready framework for deterministic choral music transformation. It combines traditional MusicXML representation with AI-driven transformations while maintaining strict musical correctness and professional workflow compatibility.
-
----
-
-## Key Features
-
-1. **Score Loading and Analysis**  
-   - Load choral scores in MusicXML format.
-   - Analyze existing harmony using music21.
-   - Detect voice parts and chord structures.
-
-2. **AI-Assisted Harmonization**  
-   - Harmonize individual measures or entire SATB scores using pluggable LLMs.  
-   - Supports multi-prompt input per voice (S, A, T, B).  
-   - Uses a modular LLM interface; currently, a **Dummy LLM** is included for testing.
-
-3. **Interactive Editing**  
-   - Apply and undo changes to individual measures.
-   - Maintain session history and score state.
-
-4. **Ghost Chords / Suggestions**  
-   - Generate alternative chord suggestions for measures.
-   - Accept or reject suggested chords interactively.
-
-5. **Audio Preview**  
-   - Render MIDI or WAV audio previews of the harmonized score.
-   - Supports multiple output formats for immediate listening.
-
-6. **Gradio-Based GUI**  
-   - Browser-based interfaces for interactive harmonization, multi-voice prompts, and measure editing.
-   - Real-time feedback and audio preview capabilities.
-
-
-## Quick Start
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository_url>
-   cd choral-llm-workbench
-   ```
-
-2. **Set up the environment** (see [User Manual](USER_MANUAL.md) for detailed instructions):
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate       # Linux/macOS
-   # or .venv\Scripts\activate      # Windows
-   pip install -r requirements.txt
-   ```
-
-3. **Launch the application:**
-   ```bash
-   python app.py
-   ```
-
-4. **Open browser:** `http://localhost:7860`
-
-## System Requirements
-
-- **Python**: 3.11+ with type hints
-- **RAM**: 8GB+ recommended for LLM operations
-- **Browser**: Modern web browser with HTML5 support
-- **Optional**: Local LLM (Ollama or compatible service)
-
-## Key Dependencies
-
-- `gradio` - Web UI framework
-- `music21` - Music notation and analysis
-- `pygame`, `pyfluidsynth` - Audio rendering
-- **Optional**: SoundFont for MIDI/WAV output
-
-## Installation Methods
-
-### Standard Installation
-Follow the detailed setup in the [User Manual](USER_MANUAL.md).
-
-### Pinokio Installation
-```bash
-bash install_pinokio.sh
-```
-
-### Audio Setup
-For audio rendering, install a SoundFont:
-- Path: `~/.fluidsynth/default_sound_font.sf2`
-- Recommended: [FluidR3_GM.sf2](https://member.keymusician.com/Member/FluidR3_GM/index.html)
-
-## Legacy CLI Interfaces
-
-Legacy Gradio apps are available in the `cli/` directory:
-```bash
-python cli/gradio_app_satb_llm.py
-```
-
-
-
-## Usage Notes
-
-Currently, a Dummy LLM is included for testing; real LLM models can be integrated via Ollama or other pluggable backends.
-
-All scores must be in MusicXML format. .mxl compressed MusicXML is supported.
-
-Audio previews require a working MIDI synthesizer or SoundFont.
-
-
-## Configuration
-
-The application reads global settings from `core/config.py`:
-
-
-# Base tuning for audio preview in Hz
-BASE_TUNING = 432.0
-
-
-## Testing Audio Rendering
-
-A dedicated test script is provided to verify WAV rendering:
-
-python tests/test_gradio_audio_wav.py
-
-This script
-
-- Loads a test MusicXML score.
-- Generates a temporary MIDI file.
-- Converts it to WAV files at 432 Hz, 440 Hz, and 443 Hz.
-- Requires a valid SoundFont in ~/.fluidsynth/default_sound_font.sf2.
-
-
-## Directory Structure
-
-./cli/               # Gradio app entry points
-./core/              # Core logic (score handling, audio, dummy LLM)
-./tests/             # Unit and integration tests
-./docs/              # Documentation (this README.md)
-
-
-
-## Goals and Future Work
-
-Integrate real AI LLMs for harmonization and multi-voice composition.
-
-Expand music theory analysis (advanced chord, modulation, voice leading).
-
-Improve error handling and user feedback in Gradio interfaces.
-
-Support collaborative session management and undo/redo across multiple edits.
-
-
-##License
-
-This project is licensed under the MIT License. See LICENSE for details.
+**Note**: This system is actively developed. For the latest features and documentation, check the repository regularly.

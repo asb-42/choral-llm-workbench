@@ -7,22 +7,20 @@ from tlr_converter import TLRConverter
 class OllamaLLM:
     """Interface to Ollama LLM for musical transformations"""
     
-    def __init__(self, model_name: str = "mistral:latest", base_url: str = "http://localhost:11434"):
+    def __init__(self, model_name: str = "qwen2:1.5b", base_url: str = "http://localhost:11434"):
         self.model_name = model_name
         self.base_url = base_url
         self.tlr_converter = TLRConverter()
         
-        # Fixed system prompt - shortened for reliability
-        self.system_prompt = """Transform musical event lists (TLR format).
+        # Simplified system prompt for small models
+        self.system_prompt = """Transform music. ONLY output TLR format.
 
-REQUIRED FORMAT:
-- Output ONLY valid TLR events: NOTE, REST, HARMONY, LYRIC
-- Headers: MEASURE <number> or VOICE <name>
-- Events: NOTE t=<onset> dur=<duration> pitch=<pitch>
-- REST t=<onset> dur=<duration>
-- HARMONY t=<onset> symbol=<chord>
-- Keep durations positive, no overlapping events
-- NO explanations, comments, or extra text"""
+PART <name> ROLE instrument
+VOICE <name>
+MEASURE <number> TIME <beats>/<beat-type>
+NOTE t=<time> dur=<duration> pitch=<pitch>
+
+NO explanations. ONLY TLR."""
     
     def transform_music(self, tlr_text: str, instruction: str) -> Tuple[str, List[str]]:
         """Transform music using LLM with given instruction"""
@@ -51,7 +49,7 @@ Instruction:
         }
         
         try:
-            response = requests.post(url, json=payload, timeout=timeout)  # Increased timeout for CPU inference
+            response = requests.post(url, json=payload, timeout=180)  # Reduced timeout - use faster model
             response.raise_for_status()
             
             result = response.json()

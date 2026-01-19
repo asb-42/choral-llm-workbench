@@ -60,8 +60,9 @@ class ChoralWorkbench:
             # Parse MusicXML
             self.current_score = self.parser.parse(file_obj.name)
             
-            # Store original TLR for diff
+            # Store original score and TLR for semantic diff
             if self.current_score:
+                self.original_score = self.current_score  # Store original for semantic diff
                 self.original_tlr = self.tlr_converter.ikr_to_tlr(self.current_score)
             
             # Convert to appropriate notation based on current setting
@@ -160,9 +161,11 @@ class ChoralWorkbench:
             return tlr_text, "Please select at least one transformation type."
         
         try:
-            # Store original score and TLR for validation
-            self.original_score = self.current_score
-            self.original_tlr = self._get_current_notation_display() if self.current_score else tlr_text
+            # Store original score and TLR for validation (only if not already stored)
+            if self.original_score is None:
+                self.original_score = self.current_score
+            if self.original_tlr is None:
+                self.original_tlr = self._get_current_notation_display() if self.current_score else tlr_text
             
             # Build enhanced prompt with transformation constraints
             transformation_constraints = self.transformation_validator.get_transformation_prompt_additions(allowed_flags)
@@ -171,7 +174,7 @@ class ChoralWorkbench:
 # Transform with LLM using constrained prompt
             response = self.llm._call_ollama(enhanced_system_prompt,
                                                   f"{tlr_text}\n\nInstruction:\n{instruction}",
-                                                  600)
+                                                   180)
             transformed_tlr = response
             llm_errors = []  # _call_ollama doesn't return errors, only raises exceptions
             
@@ -182,8 +185,10 @@ class ChoralWorkbench:
             parsed_score, validation_errors = self.tlr_parser.parse(transformed_tlr)
 
             # Always accept the transformation result, even with parsing errors
-            # The semantic diff will work as long as we have the TLR text
-            self.current_score = parsed_score if parsed_score else None
+            # Keep current_score if parsing fails, so semantic diff still works
+            if parsed_score:
+                self.current_score = parsed_score
+            # else: keep current_score from before transformation
             self._last_transformed_tlr = transformed_tlr  # Store for semantic diff fallback
 
             if validation_errors:
@@ -205,17 +210,8 @@ class ChoralWorkbench:
                     return transformed_tlr, f"⚠️ Transformation completed but validation warnings:\n" + "\n".join(transformation_errors)
 
             # Success
-            return transformed_tlr, "✅ Transformation completed successfully"
             self.transformation_flags = allowed_flags
-            
-            # Generate diff
-            current_tlr = self._get_current_notation_display()
-            diff_html = self.diff_viewer.create_diff(
-                self.original_tlr or "", current_tlr, "html"
-            )
-            
-            flag_names = ", ".join(allowed_flags)
-            return current_tlr, f"Successfully transformed music using: {flag_names}. Check diff view for details."
+            return transformed_tlr, "✅ Transformation completed successfully"
             
         except Exception as e:
             return tlr_text, f"Error during transformation: {str(e)}"
@@ -289,7 +285,8 @@ class ChoralWorkbench:
                 error_msg = "Validation errors:\n" + "\n".join(validation_errors)
                 return transformed_tlr, error_msg
             
-            # Store valid result
+            # Store result - even with parsing errors, we want to keep the TLR
+            # For export, we'll use the TLR directly if parsing failed
             self.current_score = parsed_score
             
             # Return display in current notation
@@ -313,16 +310,28 @@ class ChoralWorkbench:
     
     def export_musicxml(self, tlr_text: str) -> Optional[str]:
         """Export TLR to MusicXML for download"""
-        if not tlr_text.strip() or self.current_score is None:
+        if not tlr_text.strip():
             return None
+        
+        # If we don't have a valid current_score (parsing failed), try to re-parse
+        if self.current_score is None:
+            try:
+                # Try to parse again with relaxed validation
+                self.current_score, _ = self.tlr_parser.parse(tlr_text)
+            except:
+                # If parsing still fails, we can't export
+                return None
         
         try:
             # Create temporary file for export
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".musicxml")
             temp_file.close()
             
-            # Export to MusicXML
-            success = self.exporter.export(self.current_score, temp_file.name)
+            # Export to MusicXML - handle None case
+            if self.current_score is not None:
+                success = self.exporter.export(self.current_score, temp_file.name)
+            else:
+                success = False
             
             if success:
                 self.output_file = temp_file.name
@@ -651,7 +660,7 @@ class ChoralWorkbench:
                 inputs=[transpose_flag, rhythm_flag, style_flag, harmonic_flag],
                 outputs=[flag_status]
             )
-            
+             
             transform_btn.click(
                 fn=self.transform_with_validation,
                 inputs=[tlr_display, instruction_input, transpose_flag, rhythm_flag, style_flag, harmonic_flag],
