@@ -169,8 +169,9 @@ class ChoralWorkbench:
             enhanced_system_prompt = self.llm.system_prompt + "\n" + transformation_constraints
             
 # Transform with LLM using constrained prompt
-            response = self.llm._call_ollama(enhanced_system_prompt, 
-                                                  f"{tlr_text}\n\nInstruction:\n{instruction}")
+            response = self.llm._call_ollama(enhanced_system_prompt,
+                                                  f"{tlr_text}\n\nInstruction:\n{instruction}",
+                                                  600)
             transformed_tlr = response
             llm_errors = []  # _call_ollama doesn't return errors, only raises exceptions
             
