@@ -199,6 +199,9 @@ class SemanticDiffAnalyzer:
                     after_value=after_key
                 ))
         
+        # Sort by hierarchical importance: score -> part -> voice -> measure -> note
+        diffs.sort(key=self._sort_by_importance)
+        
         return diffs
     
     def _infer_key_from_notes(self, score: Score) -> str:
@@ -533,9 +536,17 @@ class SemanticDiffAnalyzer:
                 
                 # Add transposition entry instead of individual pitch changes
                 diffs.append(transposition_entry)
+                # Filter out individual pitch changes that were grouped
+                note_diffs = [diff for diff in note_diffs if diff not in pitch_changes]
             else:
                 # No transposition detected, add individual changes
                 diffs.extend(note_diffs)
+        else:
+            # No pitch changes, add all note changes
+            diffs.extend(note_diffs)
+        
+        # 3. Group transformations by type for better summary
+        return self._group_transformations_by_type(diffs)
         else:
             # No pitch changes, add all note changes
             diffs.extend(note_diffs)
@@ -882,6 +893,89 @@ class SemanticDiffAnalyzer:
             return "Classical"
         else:
             return "Homophonic"
+    
+    def _group_transformations_by_type(self, diffs: List[SemanticDiffEntry]) -> dict:
+        """Group transformations by type for better summary"""
+        grouped = {
+            'transposition': [],
+            'pitch': [],
+            'rhythm': [],
+            'harmony': [],
+            'key': [],
+            'meter': [],
+            'style': [],
+            'structure': []
+        }
+        
+        for diff in diffs:
+            change_type = diff.change_type
+            if change_type in grouped:
+                grouped[change_type].append(diff)
+            else:
+                # Categorize special types
+                if 'transposition' in diff.description.lower():
+                    grouped['transposition'].append(diff)
+                elif 'key' in diff.description.lower():
+                    grouped['key'].append(diff)
+                elif 'time signature' in diff.description.lower():
+                    grouped['meter'].append(diff)
+                elif 'style' in diff.description.lower():
+                    grouped['style'].append(diff)
+                else:
+                    # Default categorization
+                    if diff.scope in ['note', 'part', 'voice']:
+                        if diff.change_type == 'pitch':
+                            grouped['pitch'].append(diff)
+                        elif 'rhythm' in diff.description.lower():
+                            grouped['rhythm'].append(diff)
+                    elif diff.change_type in ['harmony']:
+                        grouped['harmony'].append(diff)
+                    else:
+                        grouped['structure'].append(diff)
+        
+        return grouped
+    
+    def create_summary(self, grouped_transforms: dict) -> str:
+        """Create a concise summary of transformations"""
+        summary_parts = []
+        
+        # Transposition summary
+        if grouped_transforms.get('transposition'):
+            trans = grouped_transforms['transposition'][0]
+            summary_parts.append(f"Global transposition: {trans['after_value']}")
+        
+        # Pitch changes summary
+        if grouped_transforms.get('pitch'):
+            pitch_count = len(grouped_transforms['pitch'])
+            summary_parts.append(f"Individual pitch changes: {pitch_count}")
+        
+        # Rhythm summary
+        if grouped_transforms.get('rhythm'):
+            rhythm_count = len(grouped_transforms['rhythm'])
+            summary_parts.append(f"Rhythmic changes: {rhythm_count}")
+        
+        # Key/meter changes
+        if grouped_transforms.get('key'):
+            key_count = len(grouped_transforms['key'])
+            summary_parts.append(f"Key changes: {key_count}")
+        
+        if grouped_transforms.get('meter'):
+            meter_count = len(grouped_transforms['meter'])
+            summary_parts.append(f"Time signature changes: {meter_count}")
+        
+        # Style changes
+        if grouped_transforms.get('style'):
+            style_count = len(grouped_transforms['style'])
+            summary_parts.append(f"Style changes: {style_count}")
+        
+        # Overall count
+        total_changes = sum(len(v) for v in grouped_transforms.values())
+        summary_parts.append(f"Total transformations: {total_changes}")
+        
+        if not summary_parts:
+            return "No musical changes detected"
+        
+        return " | ".join(summary_parts)
     
     def _sort_by_importance(self, diff: SemanticDiffEntry) -> Tuple:
         """Sort diffs by scope importance"""
