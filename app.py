@@ -288,6 +288,7 @@ class ChoralWorkbench:
             # Store result - even with parsing errors, we want to keep the TLR
             # For export, we'll use the TLR directly if parsing failed
             self.current_score = parsed_score
+            self.current_tlr = transformed_tlr
             
             # Return display in current notation
             display_tlr = self._get_current_notation_display()

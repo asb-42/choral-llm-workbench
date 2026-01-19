@@ -461,8 +461,8 @@ class SemanticDiffAnalyzer:
             return "modern experimental"
         elif avg_rhythmic_complexity > 1.2:
             return "progressive"
-                        else:
-                            return "traditional"
+        else:
+            return "traditional"
     
     def _parse_time_signature(self, time_sig: str) -> Tuple[int, int]:
         """Parse time signature string to (top, bottom) tuple"""
@@ -541,12 +541,6 @@ class SemanticDiffAnalyzer:
             else:
                 # No transposition detected, add individual changes
                 diffs.extend(note_diffs)
-        else:
-            # No pitch changes, add all note changes
-            diffs.extend(note_diffs)
-        
-        # 3. Group transformations by type for better summary
-        return self._group_transformations_by_type(diffs)
         else:
             # No pitch changes, add all note changes
             diffs.extend(note_diffs)
