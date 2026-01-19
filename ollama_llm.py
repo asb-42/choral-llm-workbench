@@ -7,7 +7,7 @@ from tlr_converter import TLRConverter
 class OllamaLLM:
     """Interface to Ollama LLM for musical transformations"""
     
-    def __init__(self, model_name: str = "llama3:latest", base_url: str = "http://localhost:11434"):
+    def __init__(self, model_name: str = "llama3.2:1b", base_url: str = "http://localhost:11434"):
         self.model_name = model_name
         self.base_url = base_url
         self.tlr_converter = TLRConverter()
@@ -84,14 +84,14 @@ Instruction:
         }
         
         try:
-            response = requests.post(url, json=payload, timeout=600)  # Increased timeout for CPU inference
+            response = requests.post(url, json=payload, timeout=timeout)  # Increased timeout for CPU inference
             response.raise_for_status()
             
             result = response.json()
             return result.get("response", "")
             
         except requests.exceptions.Timeout as e:
-            raise RuntimeError(f"LLM inference timeout after 600 seconds. Consider using a smaller model or upgrading to GPU acceleration.")
+            raise RuntimeError(f"LLM inference timeout after {timeout} seconds. Consider using a smaller model or upgrading to GPU acceleration.")
         except requests.exceptions.RequestException as e:
             if "timeout" in str(e).lower():
                 raise RuntimeError(f"LLM inference timeout. Try reducing input complexity or use a smaller model.")
