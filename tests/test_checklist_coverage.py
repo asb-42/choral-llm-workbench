@@ -3,7 +3,6 @@ Test Suite Runner
 Maps IKR Semantic Diff Checklist to tests and provides coverage reporting
 """
 
-import pytest
 import sys
 from pathlib import Path
 

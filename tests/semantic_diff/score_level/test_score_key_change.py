@@ -5,7 +5,6 @@ Transformed: D major
 Expected: [Score] Key changed: C major → D major
 """
 
-import pytest
 import os
 import sys
 from pathlib import Path
