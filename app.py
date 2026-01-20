@@ -609,9 +609,16 @@ class ChoralWorkbench:
                     
                 ollama_status = gr.Textbox(
                     label="Ollama Status",
-                    value="Checking connection...",
+                    value="Ready to connect...",
                     interactive=False
                 )
+                
+                gr.Markdown("""
+                **📋 Connection Tips:**
+                - **Local connection**: Use `localhost` (default)
+                - **Remote connection**: Ensure Ollama is started with `OLLAMA_HOST=0.0.0.0`
+                - **Troubleshooting**: See `OLLAMA_TROUBLESHOOTING.md` for connection issues
+                """)
             
             # Transformation section - TRANSFORMATION AREA
             gr.Markdown("## 🔄 TRANSFORMATION")
@@ -802,34 +809,67 @@ class ChoralWorkbench:
             
             # Ollama event handlers
             def refresh_models():
-                if self.llm.check_connection():
-                    try:
-                        models_info = self.llm.get_available_models_with_info()
-                        if models_info:
-                            model_choices = [(m['display'], m['name']) for m in models_info]
-                            return gr.update(choices=model_choices, value=self.llm.model_name), "✅ Connected - Found " + str(len(models_info)) + " models"
-                        else:
-                            return gr.update(), "⚠️ Connected but no models found"
-                    except Exception as e:
-                        return gr.update(), f"❌ Error: {str(e)}"
-                else:
-                    host = get_ollama_host()
-                    port = get_ollama_port()
-                    return gr.update(), f"❌ Cannot connect to Ollama ({host}:{port})"
+                """Refresh model list with detailed error handling"""
+                host = get_ollama_host()
+                port = get_ollama_port()
+                
+                try:
+                    print(f"DEBUG: Attempting connection to {host}:{port}")
+                    
+                    # First check basic connection
+                    if self.llm.check_connection():
+                        print("DEBUG: Connection successful, getting models...")
+                        try:
+                            models_info = self.llm.get_available_models_with_info()
+                            if models_info:
+                                model_choices = [(m['display'], m['name']) for m in models_info]
+                                print(f"DEBUG: Found {len(models_info)} models")
+                                return gr.update(choices=model_choices, value=self.llm.model_name), f"✅ Connected to {host}:{port} - Found {len(models_info)} models"
+                            else:
+                                return gr.update(), f"⚠️ Connected to {host}:{port} but no models found"
+                        except Exception as e:
+                            print(f"DEBUG: Error getting models: {e}")
+                            return gr.update(), f"❌ Error getting models from {host}:{port}: {str(e)}"
+                    else:
+                        return gr.update(), f"❌ Cannot connect to Ollama at {host}:{port} - Connection refused or timeout"
+                        
+                except Exception as e:
+                    print(f"DEBUG: Unexpected error in refresh_models: {e}")
+                    return gr.update(), f"❌ Unexpected error connecting to {host}:{port}: {str(e)}"
             
             def check_connection():
                 """Check connection to Ollama and update status"""
-                if self.llm.check_connection():
-                    return f"✅ Successfully connected to Ollama at {get_ollama_host()}:{get_ollama_port()}"
-                else:
-                    return f"❌ Cannot connect to Ollama at {get_ollama_host()}:{get_ollama_port()}"
+                host = get_ollama_host()
+                port = get_ollama_port()
+                
+                try:
+                    print(f"DEBUG: Manual connection check to {host}:{port}")
+                    if self.llm.check_connection():
+                        return f"✅ Successfully connected to Ollama at {host}:{port}"
+                    else:
+                        return f"❌ Cannot connect to Ollama at {host}:{port} - Connection refused or timeout"
+                except Exception as e:
+                    print(f"DEBUG: Connection check error: {e}")
+                    return f"❌ Error checking connection to {host}:{port}: {str(e)}"
             
             def update_ollama_host(host, port):
                 """Update Ollama host and save to config"""
                 if host and port:
-                    set_ollama_host(host, port)
-                    self.llm.set_base_url(host, port)
-                    return f"✅ Ollama host updated to {host}:{port}"
+                    try:
+                        set_ollama_host(host, port)
+                        self.llm.set_base_url(host, port)
+                        print(f"DEBUG: Updated host/port to {host}:{port}")
+                        
+                        # Test the new connection immediately
+                        if self.llm.check_connection():
+                            print(f"DEBUG: Connection test successful")
+                            return f"✅ Ollama host updated to {host}:{port} - Connection verified"
+                        else:
+                            print(f"DEBUG: Connection test failed")
+                            return f"⚠️ Ollama host updated to {host}:{port} - Warning: Connection test failed"
+                    except Exception as e:
+                        print(f"DEBUG: Error updating host/port: {e}")
+                        return f"❌ Error updating Ollama host: {str(e)}"
                 return "⚠️ Please enter both host and port"
             
             def load_saved_config():
