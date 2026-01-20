@@ -8,7 +8,7 @@ from ikr_light import Score
 class ExplainerLLM:
     """Separate LLM interface for explanation mode (read-only)"""
     
-    def __init__(self, model_name: str = "llama3.2", base_url: str = "http://localhost:11434"):
+    def __init__(self, model_name: str = "llama3.2", base_url: Optional[str] = None):
         self.llm = OllamaLLM(model_name, base_url)
         self.tlr_converter = TLRConverter()
         self.event_indexer = EventIndexer()

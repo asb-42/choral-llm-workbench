@@ -1,15 +1,19 @@
 import requests
 import json
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 from tlr_converter import TLRConverter
 
 
 class OllamaLLM:
     """Interface to Ollama LLM for musical transformations"""
     
-    def __init__(self, model_name: str = "qwen2:1.5b", base_url: str = "http://localhost:11434"):
+    def __init__(self, model_name: str = "qwen2:1.5b", base_url: Optional[str] = None):
+        from user_config import get_ollama_base_url
         self.model_name = model_name
-        self.base_url = base_url
+        if base_url:
+            self.base_url = base_url
+        else:
+            self.base_url = get_ollama_base_url()
         self.tlr_converter = TLRConverter()
         
         # Simplified system prompt for small models
@@ -68,13 +72,64 @@ Instruction:
         """Change the LLM model"""
         self.model_name = model_name
     
+    def set_base_url(self, host: str, port: str = "11434"):
+        """Update the base URL with new host/port"""
+        self.base_url = f"http://{host}:{port}"
+    
+    def get_available_models_with_info(self):
+        """Get list of available models with formatted information"""
+        try:
+            url = f"{self.base_url}/api/tags"
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            result = response.json()
+            models = result.get("models", [])
+            
+            # Format model information for display
+            formatted_models = []
+            for model in models:
+                name = model.get('name', model.get('model', 'unknown'))
+                size_bytes = model.get('size', 0)
+                
+                # Convert bytes to human-readable format
+                if size_bytes >= 1024 * 1024 * 1024:
+                    size_str = f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+                elif size_bytes >= 1024 * 1024:
+                    size_str = f"{size_bytes / (1024 * 1024):.0f} MB"
+                else:
+                    size_str = f"{size_bytes / 1024:.0f} KB"
+                
+                # Get additional details
+                details = model.get('details', {})
+                param_size = details.get('parameter_size', 'N/A')
+                quantization = details.get('quantization_level', 'N/A')
+                
+                # Create display string
+                display_str = f"{name} ({param_size}, {quantization}, {size_str})"
+                formatted_models.append({
+                    'name': name,
+                    'display': display_str,
+                    'size': size_str,
+                    'param_size': param_size,
+                    'quantization': quantization,
+                    'full_model': model
+                })
+            
+            return formatted_models
+        except requests.exceptions.RequestException as e:
+            print(f"Error getting models: {e}")
+            return []
+    
     def check_connection(self) -> bool:
         """Check if Ollama is running and accessible"""
         try:
             url = f"{self.base_url}/api/tags"
+            print(f"DEBUG: Checking connection to {url}")
             response = requests.get(url, timeout=5)
+            print(f"DEBUG: Response status: {response.status_code}")
             return response.status_code == 200
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
+            print(f"DEBUG: Connection error: {e}")
             return False
     
     def get_available_models(self) -> List[dict]:

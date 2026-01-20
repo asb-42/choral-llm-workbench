@@ -160,3 +160,4 @@ recordings/
 config.local.yaml
 config.dev.yaml
 config.prod.yaml
+user_config.json

@@ -15,6 +15,7 @@ from tlr_diff_viewer import TLTDiffViewer
 from semantic_diff_analyzer import SemanticDiffAnalyzer, SemanticDiffEntry
 from semantic_diff_ui import SemanticDiffUI
 from status_manager import StatusManager
+from user_config import load_config, save_config, set_ollama_host, get_ollama_host, get_ollama_port
 import copy
 
 
@@ -580,6 +581,21 @@ class ChoralWorkbench:
             # Ollama configuration section
             with gr.Accordion("🤖 LLM Configuration", open=False):
                 with gr.Row():
+                    config = load_config()
+                    ollama_host = gr.Textbox(
+                        label="Ollama Host",
+                        value=config.get("ollama_host", "localhost"),
+                        placeholder="e.g., localhost or 192.168.178.200",
+                        info="IP address or hostname where Ollama is running"
+                    )
+                    ollama_port = gr.Textbox(
+                        label="Ollama Port",
+                        value=config.get("ollama_port", "11434"),
+                        placeholder="Ollama API port (default: 11434)",
+                        info="Port number for Ollama API"
+                    )
+                
+                with gr.Row():
                     model_dropdown = gr.Dropdown(
                         choices=[],
                         value="llama3:latest",
@@ -587,6 +603,9 @@ class ChoralWorkbench:
                         info="Choose which LLM model to use for transformations"
                     )
                     refresh_btn = gr.Button("🔄 Refresh Models", size="sm")
+                
+                with gr.Row():
+                    check_connection_btn = gr.Button("🔌 Check Connection", size="sm")
                     
                 ollama_status = gr.Textbox(
                     label="Ollama Status",
@@ -785,16 +804,41 @@ class ChoralWorkbench:
             def refresh_models():
                 if self.llm.check_connection():
                     try:
-                        models = self.llm.get_available_models()
-                        if models:
-                            model_names = [model.get('name', model) for model in models if isinstance(model, dict)]
-                            return gr.update(choices=model_names, value=self.llm.model_name), "✅ Connected - Found " + str(len(model_names)) + " models"
+                        models_info = self.llm.get_available_models_with_info()
+                        if models_info:
+                            model_choices = [(m['display'], m['name']) for m in models_info]
+                            return gr.update(choices=model_choices, value=self.llm.model_name), "✅ Connected - Found " + str(len(models_info)) + " models"
                         else:
                             return gr.update(), "⚠️ Connected but no models found"
                     except Exception as e:
                         return gr.update(), f"❌ Error: {str(e)}"
                 else:
-                    return gr.update(), "❌ Cannot connect to Ollama (localhost:11434)"
+                    host = get_ollama_host()
+                    port = get_ollama_port()
+                    return gr.update(), f"❌ Cannot connect to Ollama ({host}:{port})"
+            
+            def check_connection():
+                """Check connection to Ollama and update status"""
+                if self.llm.check_connection():
+                    return f"✅ Successfully connected to Ollama at {get_ollama_host()}:{get_ollama_port()}"
+                else:
+                    return f"❌ Cannot connect to Ollama at {get_ollama_host()}:{get_ollama_port()}"
+            
+            def update_ollama_host(host, port):
+                """Update Ollama host and save to config"""
+                if host and port:
+                    set_ollama_host(host, port)
+                    self.llm.set_base_url(host, port)
+                    return f"✅ Ollama host updated to {host}:{port}"
+                return "⚠️ Please enter both host and port"
+            
+            def load_saved_config():
+                """Load and return saved config values"""
+                config = load_config()
+                host = config.get("ollama_host", "localhost")
+                port = config.get("ollama_port", "11434")
+                print(f"DEBUG: Loading saved config: host={host}, port={port}")
+                return host, port
             
             def update_model(model_name):
                 self.llm.set_model(model_name)
@@ -802,13 +846,40 @@ class ChoralWorkbench:
             
             # Initialize on load
             interface.load(
+                fn=load_saved_config,
+                outputs=[ollama_host, ollama_port]
+            ).then(
+                fn=lambda: "🔄 Initializing connection...",
+                outputs=[ollama_status]
+            ).then(
+                fn=update_ollama_host,
+                inputs=[ollama_host, ollama_port],
+                outputs=[ollama_status]
+            ).then(
                 fn=refresh_models,
                 outputs=[model_dropdown, ollama_status]
+            )
+            
+            ollama_host.change(
+                fn=update_ollama_host,
+                inputs=[ollama_host, ollama_port],
+                outputs=[ollama_status]
+            )
+            
+            ollama_port.change(
+                fn=update_ollama_host,
+                inputs=[ollama_host, ollama_port],
+                outputs=[ollama_status]
             )
             
             refresh_btn.click(
                 fn=refresh_models,
                 outputs=[model_dropdown, ollama_status]
+            )
+            
+            check_connection_btn.click(
+                fn=check_connection,
+                outputs=[ollama_status]
             )
             
             model_dropdown.change(
