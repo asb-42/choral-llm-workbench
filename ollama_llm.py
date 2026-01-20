@@ -80,10 +80,14 @@ Instruction:
         """Get list of available models with formatted information"""
         try:
             url = f"{self.base_url}/api/tags"
+            print(f"DEBUG: Getting models from {url}")
             response = requests.get(url, timeout=5)
             response.raise_for_status()
+            
+            print(f"DEBUG: Response status: {response.status_code}")
             result = response.json()
             models = result.get("models", [])
+            print(f"DEBUG: Found {len(models)} raw models")
             
             # Format model information for display
             formatted_models = []
@@ -115,9 +119,14 @@ Instruction:
                     'full_model': model
                 })
             
+            print(f"DEBUG: Formatted {len(formatted_models)} models")
             return formatted_models
+            
         except requests.exceptions.RequestException as e:
-            print(f"Error getting models: {e}")
+            print(f"DEBUG: Error getting models: {e}")
+            return []
+        except json.JSONDecodeError as e:
+            print(f"DEBUG: JSON decode error in get_models: {e}")
             return []
     
     def check_connection(self) -> bool:
@@ -127,7 +136,25 @@ Instruction:
             print(f"DEBUG: Checking connection to {url}")
             response = requests.get(url, timeout=5)
             print(f"DEBUG: Response status: {response.status_code}")
-            return response.status_code == 200
+            
+            # Check if we got valid JSON response
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if 'models' in data:
+                        print(f"DEBUG: Got {len(data['models'])} models")
+                        return True
+                    else:
+                        print(f"DEBUG: Invalid response format: {response.text[:100]}")
+                        return False
+                except json.JSONDecodeError as e:
+                    print(f"DEBUG: JSON decode error: {e}")
+                    print(f"DEBUG: Response text: {response.text[:200]}")
+                    return False
+            else:
+                print(f"DEBUG: HTTP error {response.status_code}: {response.text[:100]}")
+                return False
+                
         except requests.exceptions.RequestException as e:
             print(f"DEBUG: Connection error: {e}")
             return False

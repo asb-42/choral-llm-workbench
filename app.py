@@ -615,8 +615,9 @@ class ChoralWorkbench:
                 
                 gr.Markdown("""
                 **📋 Connection Tips:**
-                - **Local connection**: Use `localhost` (default)
+                - **Local connection**: Use `localhost` or `127.0.0.1` (default)
                 - **Remote connection**: Ensure Ollama is started with `OLLAMA_HOST=0.0.0.0`
+                - **Port binding**: The remote server must bind to 0.0.0.0:11434 (not just localhost)
                 - **Troubleshooting**: See `OLLAMA_TROUBLESHOOTING.md` for connection issues
                 """)
             
