@@ -15,6 +15,7 @@ from tlr_diff_viewer import TLTDiffViewer
 from semantic_diff_analyzer import SemanticDiffAnalyzer, SemanticDiffEntry
 from semantic_diff_ui import SemanticDiffUI
 from status_manager import StatusManager
+import copy
 
 
 class ChoralWorkbench:
@@ -70,8 +71,12 @@ class ChoralWorkbench:
             
             # Store original score and TLR for semantic diff
             if self.current_score:
-                self.original_score = self.current_score  # Store original for semantic diff
+                # Store original score BEFORE transformation
+                # Use deepcopy to ensure we have a separate copy, not a reference
+                self.original_score = copy.deepcopy(self.current_score)
                 self.original_tlr = self.tlr_converter.ikr_to_tlr(self.current_score)
+                # Reset transformed state
+                self.current_tlr = None
             
             # Convert to appropriate notation based on current setting
             tlr_display = self._get_current_notation_display()
@@ -116,18 +121,21 @@ class ChoralWorkbench:
         
         return input_display, output_display
     
-    def switch_mode(self, mode_choice: str) -> Tuple[str, str, str, str, str]:
+    def switch_mode(self, mode_choice: str) -> Tuple[str, str, str, str, str, str]:
         """Switch between transform and explain mode"""
         self.current_mode = mode_choice
         self.status_manager.set_idle()
         
         if mode_choice == "explain":
-            # In explain mode, show event summary and explanation interface
+            # In explain mode, show musical overview and explanation interface
             if self.current_score:
-                event_summary = self.explainer_llm.get_event_summary(self.current_score)
-                return "", "", "EXPLANATION MODE - Read Only Analysis", self.status_manager.get_display_message(), event_summary
+                # Generate a musical overview instead of technical event summary
+                musical_overview = self._generate_musical_overview()
+                # Also generate technical event summary for debugging
+                technical_summary = self.explainer_llm.get_event_summary(self.current_score)
+                return "", "", "EXPLANATION MODE - Musical Analysis", self.status_manager.get_display_message(), musical_overview, technical_summary
             else:
-                return "", "", "EXPLANATION MODE - Please upload a MusicXML file first", self.status_manager.get_display_message(), ""
+                return "", "", "EXPLANATION MODE - Please upload a MusicXML file first", self.status_manager.get_display_message(), "", ""
         else:
             # Transform mode - show current TLRs
             # Input display from original_score
@@ -140,21 +148,74 @@ class ChoralWorkbench:
             if self.current_score:
                 output_display = self.tlr_converter.ikr_to_tlr(self.current_score) if self.current_notation == "spn" else self.helmholtz_converter.score_to_helmholtz_tlr(self.current_score)
             
-            return input_display, output_display, "TRANSFORMATION MODE - Edit and Transform Music", self.status_manager.get_display_message(), ""
+            return input_display, output_display, "TRANSFORMATION MODE - Edit and Transform Music", self.status_manager.get_display_message(), "", ""
     
-    def explain_music(self, question: str) -> str:
+    def _generate_musical_overview(self) -> str:
+        """Generate a musical overview of current score"""
+        if not self.current_score:
+            return ""
+        
+        try:
+            overview_parts = []
+            overview_parts.append("## 🎵 Musical Overview\n")
+            
+            # Basic information
+            if self.current_score.parts:
+                overview_parts.append(f"**Voices/Parts:** {len(self.current_score.parts)}")
+                for i, part in enumerate(self.current_score.parts):
+                    role = part.role if hasattr(part, 'role') else "instrument"
+                    name = part.name if hasattr(part, 'name') else f"Part {i+1}"
+                    overview_parts.append(f"  - {name} ({role})")
+            
+            # Measures
+            total_measures = 0
+            if self.current_score.parts:
+                for part in self.current_score.parts:
+                    if hasattr(part, 'voices') and part.voices:
+                        for voice in part.voices:
+                            if hasattr(voice, 'measures') and voice.measures:
+                                total_measures = max(total_measures, len(voice.measures))
+            overview_parts.append(f"\n**Total Measures:** {total_measures}")
+            
+            # Key and time signature information
+            overview_parts.append("\n**Structure:**")
+            overview_parts.append("  - Time signature information varies by part")
+            overview_parts.append("  - Pitch information analyzed per voice")
+            
+            # Musical characteristics
+            overview_parts.append("\n**Musical Characteristics:**")
+            overview_parts.append("  - Use the question box below to ask about:")
+            overview_parts.append("    • Harmonic progressions")
+            overview_parts.append("    • Voice leading")
+            overview_parts.append("    • Melodic structure")
+            overview_parts.append("    • Rhythmic patterns")
+            overview_parts.append("    • Key changes")
+            
+            # Transformation info
+            if self.original_score and self.original_score != self.current_score:
+                overview_parts.append("\n**Note:** A transformation has been applied. You can ask questions about:")
+                overview_parts.append("  - What changed between original and transformed version")
+                overview_parts.append("  - Why specific notes were altered")
+                overview_parts.append("  - How transformation affected musical structure")
+            
+            return "\n".join(overview_parts)
+            
+        except Exception as e:
+            return f"Error generating musical overview: {str(e)}"
+    
+    def explain_music(self, question: str) -> Tuple[str, str]:
         """Answer user question about current music"""
         if not question.strip():
             self.status_manager.set_idle()
-            return "Please enter a question about the music."
+            return "Please enter a question about the music.", ""
         
         if self.current_mode != "explain":
             self.status_manager.set_idle()
-            return "Please switch to explanation mode first."
+            return "Please switch to explanation mode first.", ""
         
         if not self.current_score:
             self.status_manager.set_idle()
-            return "Please upload a MusicXML file first."
+            return "Please upload a MusicXML file first.", ""
         
         try:
             # Update status
@@ -175,14 +236,14 @@ class ChoralWorkbench:
              
             if errors:
                 self.status_manager.set_idle()
-                return f"Analysis errors: {'; '.join(errors)}"
+                return f"Analysis errors: {'; '.join(errors)}", ""
             
             self.status_manager.set_idle()
-            return explanation
+            return "✅ Explanation completed successfully", explanation
             
         except Exception as e:
             self.status_manager.set_llm_error(str(e))
-            return f"Error during explanation: {str(e)}"
+            return f"Error during explanation: {str(e)}", ""
     
     def transform_with_validation(self, tlr_text: str, instruction: str,
                               transpose_flag: bool, rhythm_flag: bool, 
@@ -281,11 +342,24 @@ class ChoralWorkbench:
     def update_semantic_diff_display(self) -> str:
         """Update semantic diff display with HTML output"""
         try:
-            # Try to use parsed scores if available
+            print(f"DEBUG: update_semantic_diff_display called")
+            print(f"DEBUG: original_score exists: {self.original_score is not None}")
+            print(f"DEBUG: current_score exists: {self.current_score is not None}")
+            
+            # Debug: Check if we have both scores
             if self.original_score and self.current_score:
+                # Check if they are same object or different
+                is_same = self.original_score is self.current_score
+                print(f"DEBUG: original_score is current_score: {is_same}")
+                print(f"DEBUG: original_score: {type(self.original_score)}, id={id(self.original_score)}")
+                print(f"DEBUG: current_score: {type(self.current_score)}, id={id(self.current_score)}")
+                
                 semantic_diffs = self.semantic_analyzer.compute_semantic_diff(
                     self.original_score, self.current_score
                 )
+                print(f"DEBUG: Got {len(semantic_diffs)} semantic diffs")
+                if semantic_diffs:
+                    print(f"DEBUG: First diff: {semantic_diffs[0]}")
                 return self.semantic_ui.render_semantic_diff_html(semantic_diffs)
 
             # Fallback: Show that transformation occurred but parsing failed
@@ -572,14 +646,20 @@ class ChoralWorkbench:
                 with gr.Row(visible=False) as explain_section:
                     with gr.Column(scale=2):
                         question_input = gr.Textbox(
-                            label="Question about the Music",
+                            label="Ask a Question about the Music",
                             placeholder="e.g., Why was the F# in Alto measure 12 lowered?",
                             lines=2
+                        )
+                        musical_explanation = gr.Textbox(
+                            label="Musical Explanation",
+                            lines=10,
+                            interactive=False,
+                            placeholder="Musical explanation will appear here..."
                         )
                     
                     with gr.Column(scale=1):
                         explanation_status = gr.Textbox(
-                            label="Explanation Status",
+                            label="Status",
                             interactive=False,
                             placeholder="Ask a question and click Explain"
                         )
@@ -601,13 +681,13 @@ class ChoralWorkbench:
                     interactive=False
                 )
             
-            # Event Summary - Explanation Mode
-            with gr.Accordion("📊 Event Summary (Explanation Mode)", open=False):
+            # Event Summary - Explanation Mode (for technical debugging)
+            with gr.Accordion("🔧 Technical: Event Summary (Debug)", open=False):
                 event_summary = gr.Textbox(
                     label="Event IDs and Locations",
                     lines=8,
                     interactive=False,
-                    placeholder="Event IDs and locations will appear here in explanation mode...",
+                    placeholder="Event IDs and locations will appear here for debugging...",
                     visible=False
                 )
             
@@ -684,11 +764,12 @@ class ChoralWorkbench:
             mode_choice.change(
                 fn=self.switch_mode,
                 inputs=[mode_choice],
-                outputs=[tlr_display, transformed_tlr_display, upload_status, status_display, event_summary]
+                outputs=[tlr_display, transformed_tlr_display, upload_status, status_display, musical_explanation, event_summary]
             ).then(
                 lambda mode: (gr.update(visible=(mode == "transform")), 
                             gr.update(visible=(mode == "explain")),
                             gr.update(visible=True),
+                            gr.update(visible=(mode == "explain")),
                             gr.update(visible=(mode == "explain"))),
                 inputs=[mode_choice],
                 outputs=[transform_section, explain_section, diff_section, event_summary]
@@ -772,7 +853,7 @@ class ChoralWorkbench:
             explain_btn.click(
                 fn=self.explain_music,
                 inputs=[question_input],
-                outputs=[explanation_status]
+                outputs=[explanation_status, musical_explanation]
             ).then(
                 fn=lambda: self.status_manager.get_display_message(),
                 outputs=[status_display]
