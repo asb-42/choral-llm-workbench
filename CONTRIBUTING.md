@@ -1,194 +1,411 @@
-# Contributing to Choral LLM Workbench
+CONTRIBUTING.md — Semantic Diff & Test Discipline
 
-Thank you for your interest in contributing to the Choral LLM Workbench! This document provides guidelines and information for contributors.
+Purpose of This Document
 
-## Getting Started
+This project relies on a Semantic Diff system for musical scores based on an internal IKR representation.
+Correctness is defined musically, not syntactically.
 
-### Prerequisites
+The accompanying test suite is therefore not optional.
+It is the formal specification of what the system is allowed to output.
 
-- Python 3.8 or higher
-- Git
-- (Optional) Git LFS for handling large binary files
+Any contribution that affects musical analysis, transformation, or description must comply with the rules below.
 
-### Setup
 
-1. Fork the repository on GitHub
-2. Clone your fork locally:
-   ```bash
-   git clone https://github.com/your-username/choral-llm-workbench.git
-   cd choral-llm-workbench
-   ```
-3. Install the project in development mode:
-   ```bash
-   pip install -e ".[dev]"
-   ```
-4. Install Git LFS hooks (if not already installed):
-   ```bash
-   git lfs install
-   ```
 
-## Development Workflow
+Core Principle
 
-### Branch Strategy
+  If the Semantic Diff tests fail, the implementation is incorrect.
 
-- `main`: Primary development branch (protected)
-- `feature/feature-name`: Feature development
-- `bugfix/bug-description`: Bug fixes
-- `hotfix/critical-fix`: Critical production fixes
+This applies regardless of:
 
-### Creating Changes
+* how plausible the output looks,
+* whether the UI appears correct,
+* or whether an LLM generated the code.
 
-1. Create a new branch from `main`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-2. Make your changes following the coding standards below
-3. Test your changes thoroughly
-4. Commit your changes with descriptive messages
-5. Push to your fork and create a pull request
 
-### Code Standards
 
-#### Python Code Style
+Scope of the Semantic Diff Test Suite
 
-- Use **Black** for code formatting (configured in pyproject.toml)
-- Follow **PEP 8** guidelines
-- Use type hints where possible
-- Maximum line length: 88 characters
+The Semantic Diff test suite validates:
 
-#### Documentation
+* musical correctness of detected changes
+* score-level analysis (key, meter, tempo, global transformations)
+* voice-level grouping (e.g. transposition, rhythm simplification)
+* event-level language (intervals, note values)
+* transformation summaries
+* deterministic and stable output
 
-- Add docstrings to all public functions and classes
-- Use Google-style docstring format
-- Update README.md for user-facing changes
-- Add inline comments for complex logic
+The tests explicitly do not cover:
 
-#### Testing
+* UI layout (Gradio)
+* visual styling
+* XML formatting
+* MusicXML layout or engraving details
 
-- Write tests for all new functionality
-- Use pytest framework
-- Aim for high code coverage
-- Place tests in the `tests/` directory
 
-### Commit Message Format
 
-Use conventional commit format:
+Required Workflow for Contributions
 
-```
-type(scope): description
+1. Create a Dedicated Branch
 
-[optional body]
+All changes must be developed on a feature or fix branch.
 
-[optional footer]
-```
+Example:
 
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `test`: Test additions/changes
-- `chore`: Maintenance tasks
+  git checkout -b diff-score-key-analysis
+
+2. Identify the Relevant Checklist Item
+
+Each change should correspond to exactly one item in the
+IKR Semantic Diff – Implementation Checklist.
 
 Examples:
-```
-feat(audio): add MIDI export functionality
 
-Add support for exporting scores to MIDI format with configurable
-tempo and instrument mapping.
+* “Detect score-level key changes”
+* “Group pitch changes into transpositions”
+* “Use musical language for durations”
 
-Closes #123
-```
+Avoid implementing multiple checklist items in one step.
 
-```
-fix(cli): resolve Gradio app startup issue
+3. Write or Enable a Test First
 
-Fix the NoneType error when launching the CLI interface without
-proper configuration validation.
-```
+Before changing implementation code:
 
-## Pull Request Process
+* ensure a corresponding test exists under
+  tests/semantic_diff/
+* or add a new test that expresses the expected behavior
 
-### Before Submitting
+Tests must:
 
-1. **Run tests**: Ensure all tests pass
-   ```bash
-   pytest
-   ```
-2. **Format code**: Apply Black formatting
-   ```bash
-   black .
-   ```
-3. **Lint code**: Run flake8
-   ```bash
-   flake8 .
-   ```
-4. **Type check**: Run mypy (if applicable)
-   ```bash
-   mypy .
-   ```
-5. **Update documentation**: Update relevant docs and README
+* be deterministic
+* avoid snapshots of full outputs
+* assert semantic meaning, not internal structures
 
-### Pull Request Guidelines
+4. Implement the Minimal Required Logic
 
-1. Use descriptive title and description
-2. Link relevant issues in the description
-3. Include screenshots for UI changes
-4. Add "WIP" (Work in Progress) prefix if not ready for review
-5. Request review from maintainers
+Implementation should:
 
-### Review Process
+* satisfy the failing test(s)
+* avoid introducing unrelated behavior
+* not “fix” other tests unless explicitly intended
 
-- Maintainers will review your PR
-- Address all feedback promptly
-- Keep the PR updated with your latest changes
-- Once approved, maintainers will merge the PR
+Do not refactor aggressively while implementing a checklist item.
 
-## Project Structure
+5. Run the Full Test Suite
 
-```
-choral-llm-workbench/
-├── cli/                 # Command-line interfaces and Gradio apps
-├── core/               # Core business logic
-│   ├── audio/          # Audio processing
-│   ├── editor/         # Score editing
-│   ├── llm/           # LLM integration
-│   └── score/         # Score handling
-├── tests/              # Test suite
-├── docs/              # Documentation
-├── examples/          # Example files
-└── config/            # Configuration management
-```
+Before committing:
 
-## Handling Binary Files
+  pytest
 
-This project uses Git LFS for large binary files:
 
-- Music files: `.xml`, `.mxl`, `.mid`, `.midi`
-- Audio files: `.mp3`, `.wav`, `.flac`
-- Archives: `.zip`
+or, at minimum:
 
-These files are automatically tracked by LFS via `.gitattributes`.
+  pytest tests/semantic_diff/
 
-## Reporting Issues
+All tests must pass.
 
-When reporting bugs:
+6. Commit with a Semantic Message
 
-1. Use the GitHub issue tracker
-2. Provide detailed description of the problem
-3. Include steps to reproduce
-4. Add relevant error messages and logs
-5. Specify your environment (OS, Python version, etc.)
+Commit messages should clearly reference the checklist intent.
 
-## Asking Questions
+Examples:
 
-- Use GitHub Discussions for general questions
-- Check existing issues and discussions first
-- Provide context and be specific about your needs
+  Add score-level key change detection to semantic diff
 
-## Code of Conduct
+  Improve musical language for note duration changes
 
-Be respectful, inclusive, and constructive in all interactions. Follow the [Python Community Code of Conduct](https://www.python.org/psf/conduct/).
+Avoid vague messages like “fix diff” or “cleanup”.
 
-Thank you for contributing!
+
+
+Determinism Requirement
+
+Semantic Diff output must be deterministic.
+
+Given identical inputs:
+
+* output text
+* ordering
+* grouping
+
+must be identical across runs.
+
+Non-deterministic behavior is considered a bug, even if rare.
+
+
+
+Language and UX Rules
+
+Semantic Diff output must:
+
+* use musical terminology, not technical terms
+  (e.g. “Quarter note” instead of “0.25 duration”)
+* express pitch changes as intervals where possible
+* describe one musical concept per line
+* avoid leaking internal representations (IKR, XML, floats)
+
+These rules are enforced by tests.
+
+
+
+Relationship to LLM-Generated Code
+
+LLMs may be used to generate code, but:
+
+* generated code is subject to the same rules
+* failing tests must be fixed manually or via further prompting
+* “the model produced it” is not an acceptable justification
+
+The test suite exists precisely to constrain generative behavior.
+
+
+
+When in Doubt
+
+If a change feels musically ambiguous:
+
+* prefer explicit tests over implicit assumptions
+* discuss the expected behavior in the test description
+* keep the implementation conservative
+
+The test suite is the single source of truth.
+
+
+
+Summary
+
+* The Semantic Diff tests define correctness.
+* Contributions are scoped to checklist items.
+* Determinism and musical language are mandatory.
+* Tests are not documentation — they are specification.
+
+
+Where this file belongs
+
+📌 This section should be committed to the repository root as CONTRIBUTING.md.
+
+That way:
+
+* external contributors see it immediately
+* LLMs working in the repo implicitly “learn the rules”
+* future you doesn’t have to re-explain the architecture
+
+
+======================================================================================
+
+
+1. Zweck der Testsuite
+
+Die Testsuite ist kein Selbstzweck. Sie erfüllt bei euch vier sehr konkrete Funktionen:
+
+a) Definition von „musikalisch korrekt“
+
+-> Die Tests sind die formale Spezifikation der IKR Semantic Diff
+
+b) Regression Guard
+
+-> Jede Änderung an Diff-Logik, IKR oder LLM-Output wird sofort überprüft
+
+c) Arbeitsvertrag mit LLMs
+
+-> Opencode / Qwen / GLM dürfen nur das verändern, was Tests erlauben
+
+d) Objektiver Fortschrittsmesser
+
+-> „30 % erfüllt“ → „65 % erfüllt“ ist messbar
+
+Man kann sagen:
+
+Die Testsuite ersetzt implizites musikalisches Wissen durch explizite Regeln.
+
+
+2. Wann wird die Testsuite ausgeführt?
+
+A. Während der Entwicklung (lokal)
+
+Das ist der Hauptanwendungsfall.
+
+Im Projekt-Root:
+
+  $ pytest
+
+oder gezielt:
+
+  $ pytest tests/semantic_diff/
+
+oder noch gezielter:
+
+  $ pytest tests/semantic_diff/score_level/
+
+
+➡️ Typischer Workflow:
+
+* Neuen Branch anlegen
+* Test(s) schreiben oder aktivieren
+* Test schlägt fehl (rot)
+* Code ändern
+* Test wird grün
+* Commit
+
+
+B. Nach jeder inhaltlichen Änderung an:
+
+* IKR-Strukturen
+* Semantic Diff Logik
+* musikalischer Sprachgenerierung
+* Gruppierungslogik
+* Score-Level-Analyse
+
+➡️ Faustregel:
+
+Wenn sich der Text des Diffs ändern könnte, Tests laufen lassen.
+
+
+3. Wie liest man ein fehlgeschlagenes Testergebnis?
+
+Beispiel:
+
+  FAILED test_score_key_change.py::test_key_change_detected
+  AssertionError: 'Key changed: C major → D major' not found in diff
+
+
+Das bedeutet nicht:
+
+  „Test kaputt“
+
+Sondern:
+
+  IKR Diff erfüllt die Spezifikation noch nicht
+
+Die Testsuite sagt:
+
+  „Du behauptest, Key Changes zu unterstützen – zeig es mir.“
+
+
+4. Wie wird die Testsuite zur Checkliste?
+
+Der zentrale Mechanismus
+
+Wir haben:
+
+  test_checklist_coverage.py
+
+
+Dieser Test:
+
+* listet alle IKR Semantic Diff Checklist-Punkte
+* mappt sie auf konkrete Tests
+* schlägt fehl, wenn:
+** ein Punkt keinen Test hat
+** ein Test deaktiviert ist
+
+➡️ Ergebnis:
+
+  pytest
+  ====================
+  IKR Semantic Diff Coverage: 9 / 28 checks passed
+  ====================
+
+Das ist Gold für Planung & Priorisierung.
+
+
+5. Wie nutzt man die Testsuite mit Opencode konkret?
+
+A. Für Opencode / LLMs
+
+Du gibst Opencode immer nur ein Ziel, z. B.:
+
+  „Mache test_score_meter_change.py grün.
+  Ändere keinen anderen Test.“
+
+Opencode:
+
+* arbeitet
+* führt Tests aus
+* commitet
+
+Wenn es „verhakt“:
+
+* Aufgabe zu groß
+* weiter aufsplitten
+
+
+B. Für Entwickler/Architekt
+
+Du nutzt die Testsuite für:
+
+* Scope-Kontrolle
+* LLM-Disziplin
+* Vermeidung von Feature Drift
+
+Beispiel:
+
+  „Wir implementieren heute keine Style Changes – Test bleibt rot.“
+
+Das ist eine bewusste Entscheidung, kein Bug.
+
+
+6. Testsuite ≠ UI-Tests
+
+Wichtig, um Missverständnisse zu vermeiden:
+
+Die Testsuite prüft nicht:
+
+* Gradio-UI
+* Farben
+* Collapse/Expand
+* visuelle Darstellung
+
+Sie prüft ausschließlich:
+
+* IKR → Semantic Diff → Text
+
+➡️ UI darf kaputtgehen, ohne dass Tests rot werden
+➡️ Semantik darf nicht kaputtgehen, ohne dass Tests rot werden
+
+Das ist genau die richtige Trennung.
+
+
+7. Typischer Tagesablauf (realistisch)
+
+Ein typischer Entwicklungszyklus:
+
+  a) git checkout -b diff-key-analysis
+
+  b) pytest tests/semantic_diff/score_level/test_score_key_change.py
+
+    → rot
+
+  c) IKR-Diff-Code anpassen
+
+  d) pytest
+
+    → grün
+
+  e) git commit -m "Add score-level key change detection"
+
+  f) nächster Checklist-Punkt
+
+
+8. Wann läuft die Testsuite nicht?
+
+Bewusst nicht bei:
+
+* reinem UI-Refactoring
+* CSS-Anpassungen
+* Gradio-Layout
+* README-Änderungen
+
+Aber immer, wenn:
+
+* Musik analysiert
+* beschrieben
+* zusammengefasst wird
+
+
+9. Wichtigster mentale Shift
+
+Wenn du dir eine Sache merken willst:
+
+  Die Testsuite ist die musikalische Verfassung des Systems.
+  Code, der sie verletzt, ist per Definition falsch – egal wie „plausibel“ er wirkt.
